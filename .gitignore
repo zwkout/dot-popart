@@ -1,0 +1,31 @@
+# ビルドの生成物
+build/
+.gradle/
+.kotlin/
+*.apk
+*.aab
+
+# この PC だけの設定（SDK の場所など）
+local.properties
+
+# 署名の鍵とそのパスワード（絶対に入れない）
+*.jks
+*.keystore
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 資料（仕様書・設計メモ・デザインの試作など）はリポジトリに入れない
+docs/
+
+# Glyph Matrix SDK は利用条件で再配布が禁止されている。公式から取ってきて置く（README）
+app/libs/*.aar
+
+# リポジトリの外の資料や実機を前提にした開発用の道具
+tools/reference/
+tools/device-check/

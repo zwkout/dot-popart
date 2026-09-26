@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <!-- デバッグ版だけ：adb（shell）から点灯中のおもちゃを切り替える。DUMP 権限を持つ shell からしか送れない -->
+        <receiver
+            android:name=".DebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.dotpopart.app.debug.SET_TOY" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

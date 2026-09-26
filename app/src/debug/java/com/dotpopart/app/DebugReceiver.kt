@@ -1,0 +1,36 @@
+package com.dotpopart.app
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import com.dotpopart.app.glyph.TestPattern
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+/**
+ * デバッグ版だけ。端末を伏せたまま、adb からおもちゃと明るさを切り替える（段階6の確認用）。
+ *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es toy clock [--ei brightness 2]
+ * 明るさの下限を測る縦線を出す／消す（値は実効値。左から1列おきに並ぶ）。
+ *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pattern 16,32,48,64,96,128
+ *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pattern off
+ */
+class DebugReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val repo = (context.applicationContext as DotPopArtApp).settings
+        val toy = intent.getStringExtra("toy")
+        val brightness = intent.getIntExtra("brightness", -1)
+        intent.getStringExtra("pattern")?.let { p ->
+            if (p == "off") TestPattern.clear() else TestPattern.show(p.split(',').mapNotNull { it.trim().toIntOrNull() })
+        }
+        val done = goAsync()
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                if (toy != null) repo.applyToy(toy, emptyMap())
+                if (brightness in 0..3) repo.setBrightness(brightness)
+            } finally {
+                done.finish()
+            }
+        }
+    }
+}
