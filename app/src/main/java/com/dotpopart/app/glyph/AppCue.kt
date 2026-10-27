@@ -30,6 +30,7 @@ import kotlin.math.sin
  *   アプリのスイッチをオフにしたときも、閉じたときと同じく END を再生する。
  * - END には USE を何秒続けたか（u0）を渡す（USE の間も動くものは、止まった位置から END を始める）。
  * - マップのように方位を使うアニメーションの間だけ、方位センサー（[CueCompass]）を動かす。
+ * - vwfndr のように端末の向きで回すアニメーションは、重力で縦持ち・横持ち・逆さまを決め、90° を 0.3 秒の速さで回す。
  * - 重ね方：おもちゃのコマに倍率を掛けたあと、アニメーションの値と大きいほうを取る。
  * ループのスレッドだけから呼ぶ。
  */
@@ -72,19 +73,31 @@ class AppCue(private val context: Context) {
     private var smoothX = 0.0
     private var smoothY = -1.0
 
+    /** 絵を回す角度の目標（縦持ち 0、横持ち ±90、逆さま 180）と、今の角度。 */
+    private var turnTarget = 0.0
+    private var turnNow = 0.0
+
     /** アニメーションを出しているか（IDLE 以外）。出している間はおもちゃの振動を止める。 */
     val visible: Boolean get() = phase != Phase.IDLE
 
     val state: String get() = if (phase == Phase.IDLE) "idle" else "${target?.id}:${phase.name.lowercase()}"
 
-    /** おもちゃのコマ [frame] にアニメーションを重ねる。[now] は elapsedRealtime、[dt] は前の刻みからの秒。 */
-    fun apply(frame: FloatArray, geo: Geo, s: AppSettings, now: Long, dt: Double) {
+    /**
+     * おもちゃのコマ [frame] にアニメーションを重ねる。[now] は elapsedRealtime、[dt] は前の刻みからの秒、
+     * ([ax], [ay]) は端末の座標の重力（m/s²）。
+     */
+    fun apply(frame: FloatArray, geo: Geo, s: AppSettings, now: Long, dt: Double, ax: Float, ay: Float) {
+        orient(ax, ay)
         val want = desired(s, now)
         // 開いてすぐ閉じたときは、START を出してから、次の刻みで END に移る
         val blip = opened?.takeIf { forced == null && s.appCueOn(it.id) }
         opened = null
         advance(want ?: blip, want, geo, dt)
         val a = anim ?: return
+        if (a.turnsWithDevice) {
+            stepTurn(dt)
+            a.turn = turnNow
+        }
         if (phase != Phase.IDLE && a.usesHeading) {
             compass.start()
             a.heading = headingFor(geo)
@@ -110,6 +123,35 @@ class AppCue(private val context: Context) {
             }
         }
         for (i in frame.indices) frame[i] = maxOf(frame[i] * mul, animFrame[i])
+    }
+
+    /**
+     * 重力から、絵をどちらに立てるか（縦持ち 0、横持ち ±90、逆さま 180）を決める。いちばん近い向きに合わせるが、
+     * 今の向きから 45 + [TURN_HYSTERESIS_DEG]° を超えて倒れるまでは切り替えない。平らに置いているときは今のまま。
+     * 背面から見ると、画面側から見た回し方と逆に見えるので、絵は端末と同じ向きに回すとまっすぐ立って見える。
+     */
+    private fun orient(ax: Float, ay: Float) {
+        if (ax * ax + ay * ay < FLAT_G2) return
+        val want = -Math.toDegrees(atan2(ax.toDouble(), ay.toDouble()))
+        if (abs(wrap(want - turnTarget)) <= 45 + TURN_HYSTERESIS_DEG) return
+        turnTarget = wrap(Math.round(want / 90) * 90.0)
+        if (phase != Phase.IDLE) Log.i("DPA", "cue turn ${turnTarget.toInt()}")
+    }
+
+    /**
+     * 今の角度を目標へ一定の速さで、近い回り方で回す。十字は 180° 回すと同じ形だが、逆さまにしたときも
+     * 回って見えるよう、半回転させる。
+     */
+    private fun stepTurn(dt: Double) {
+        val d = wrap(turnTarget - turnNow)
+        val step = TURN_DEG_PER_SEC * dt
+        turnNow = if (abs(d) <= step) turnTarget else wrap(turnNow + (if (d > 0) step else -step))
+    }
+
+    /** 角度を -180〜180 に収める。 */
+    private fun wrap(a: Double): Double {
+        val m = ((a % 360) + 360) % 360
+        return if (m > 180) m - 360 else m
     }
 
     /** 画面を上にして置いている間など、描かない間はセンサーを止める。 */
@@ -172,6 +214,8 @@ class AppCue(private val context: Context) {
 
     private fun begin(t: AppCueTarget, geo: Geo) {
         next = null
+        // 開いたときにもう横持ちなら、はじめから横向きで出す
+        turnNow = turnTarget
         if (t != target || anim?.geo != geo) {
             target = t
             anim = t.anim(geo)
@@ -268,6 +312,13 @@ class AppCue(private val context: Context) {
 
         private const val NAV_SWITCH_DEG = 22.5 + 5
         private const val NAV_SMOOTH = 0.35
+
+        /** 重力の画面に沿った成分がこれより小さい（平らに置いている）ときは、縦横を決めない（(m/s²)²）。 */
+        private const val FLAT_G2 = 4f * 4f
+
+        /** 向きの境目（45°）を越えてから、さらに何度倒れたら切り替えるか。 */
+        private const val TURN_HYSTERESIS_DEG = 10.0
+        private const val TURN_DEG_PER_SEC = 300.0
 
         private const val POLL_MS = 500L
         private const val PERM_CHECK_MS = 5_000L

@@ -75,6 +75,35 @@ class AppCueAnimTest {
         }
     }
 
+    /** 横持ち：±90° 回すと、縦持ちの十字を斜めの軸で折り返した形（横 5・縦 9）になる。途中の角度でも形がくずれない。 */
+    @Test
+    fun vwfndrTurnsSideways() {
+        for (g in geos) {
+            val anim = VwfndrLockAnim(g)
+            val up = anim.use(0.0)
+            for (turn in listOf(90.0, -90.0)) {
+                anim.turn = turn
+                val side = anim.use(0.0)
+                for (y in 0 until g.n) for (x in 0 until g.n) {
+                    assertEquals("n=${g.n} turn=$turn ($x, $y)", up[g.idx(y, x)], side[g.idx(x, y)], 0f)
+                }
+                assertArrayEquals("n=${g.n} turn=$turn start(1) = use", side, anim.start(1.0), 0f)
+                assertTrue("n=${g.n} turn=$turn end(1) is dark", anim.end(1.0, 0.0).all { it == 0f })
+            }
+            // 逆さま：十字は 180° 回しても同じ形
+            anim.turn = 180.0
+            assertArrayEquals("n=${g.n} turn=180", up, anim.use(0.0), 0f)
+            for (turn in listOf(15.0, 45.0, -60.0, 135.0)) {
+                anim.turn = turn
+                val f = anim.use(0.0)
+                val lit = f.count { it > 0f }
+                // 斜めの腕は Bresenham で短く（マスが少なく）なる
+                assertTrue("n=${g.n} turn=$turn lit=$lit", lit in (g.n * 2 / 3)..g.n)
+                for (i in f.indices) if (!g.inside(i)) assertEquals(0f, f[i])
+            }
+        }
+    }
+
     @Test
     fun allAnimsAreWellFormed() {
         for (g in geos) for (id in AppCueAnims.ids) for (h in listOf(0.0, 137.0)) {

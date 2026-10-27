@@ -44,6 +44,7 @@ abstract class CueAnim(final override val geo: Geo) : AppCueAnim {
     private val dist = DoubleArray(geo.size) { i -> sqrt(sq(i % n - c) + sq(i / n - c)) }
 
     override var heading = 0.0
+    override var turn = 0.0
 
     final override fun start(p: Double, out: FloatArray): FloatArray {
         out.fill(0f)

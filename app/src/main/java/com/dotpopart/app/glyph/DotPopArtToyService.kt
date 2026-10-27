@@ -230,7 +230,7 @@ class DotPopArtToyService : Service() {
         val haptic = r.toy.consumeHaptic()
 
         r.draw(frame)
-        cue.apply(frame, DeviceInfo.geo, s, now, dt)
+        cue.apply(frame, DeviceInfo.geo, s, now, dt, hub.ax, hub.ay)
         if (!cue.visible) vibrate(haptic, now)
         val pattern = TestPattern.frame
         if (pattern != null) {
