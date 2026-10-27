@@ -49,6 +49,7 @@ enum class ThemeMode(val key: String) {
  * @property toyParams おもちゃごとの設定値（`toy.<id>.<controlKey>`）。保存されていない項目は定義の既定値を使う。
  * @property rotationCursor ローテーションで最後に出したおもちゃ（✓ で割り込んでも変わらない）。
  * @property rotationLastSwitch ローテーションで最後に切り替えた時刻（エポックミリ秒）。
+ * @property appCue アプリ連動のアプリごとのオン／オフ（`appCue.<id>`）。保存されていないアプリはオン。
  * @property previewDevice デバッグ用：プレビューで見る端末の一辺（0 なら実機に合わせる）。
  */
 data class AppSettings(
@@ -60,12 +61,15 @@ data class AppSettings(
     val rotationInterval: RotationInterval = RotationInterval.HOUR1,
     val rotationOrder: RotationOrder = RotationOrder.LIST,
     val buttonAction: ButtonAction = ButtonAction.NEXT,
+    val appCue: Map<String, Boolean> = emptyMap(),
     val toyParams: Map<String, Map<String, Float>> = emptyMap(),
     val rotationCursor: String? = null,
     val rotationLastSwitch: Long = 0L,
     val previewDevice: Int = 0,
 ) {
     fun paramsOf(id: String): Map<String, Float> = toyParams[id] ?: emptyMap()
+
+    fun appCueOn(id: String): Boolean = appCue[id] ?: true
 
     companion object {
         val DEFAULT_ROTATION = setOf("pong", "life", "meteor", "globe")

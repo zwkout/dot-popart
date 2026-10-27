@@ -42,6 +42,8 @@ import kotlin.math.roundToInt
  *   以前はアプリ層と切り替えていたが、明るさの差（システムの倍率が層ごとに違う）と、切り替えの遅れ・
  *   固まりが出たのでやめた。画面を上にして置いている間は、計算も送信も止める。
  * - 設定シートを開いている間は、編集中のおもちゃ（LiveDraft）を描く。✓ で保存されると、そのまま続けて描く。
+ * - アプリ連動：対象アプリ（vwfndr）を開いている間は、おもちゃの代わりにそのアプリのアニメーションを出す（[AppCue]）。
+ *   出ている間もおもちゃの中の時間は進めるが、振動は止める。
  * - WakeLock は、伏せている間で、かつバッテリーの最適化の対象外のときだけ持つ（Doze 中のカクつき対策。Doze 中は、対象外でないと WakeLock が効かない）。
  */
 class DotPopArtToyService : Service() {
@@ -59,6 +61,7 @@ class DotPopArtToyService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var repo: SettingsRepository
     private lateinit var hub: InputHub
+    private lateinit var cue: AppCue
     private lateinit var power: PowerManager
     private var vibrator: Vibrator? = null
 
@@ -93,6 +96,7 @@ class DotPopArtToyService : Service() {
         super.onCreate()
         repo = (application as DotPopArtApp).settings
         hub = InputHub(this)
+        cue = AppCue(this)
         power = getSystemService(PowerManager::class.java)
         vibrator = getSystemService(VibratorManager::class.java)?.defaultVibrator
         scope.launch { repo.settings.collect { settings = it } }
@@ -190,13 +194,15 @@ class DotPopArtToyService : Service() {
         inputs.charging = hub.charging
         inputs.notifications = NotificationCounter.count.get()
         r.advance(dt)
-        vibrate(r.toy.consumeHaptic(), now)
+        val haptic = r.toy.consumeHaptic()
 
         r.draw(frame)
+        cue.apply(frame, DeviceInfo.geo, s, now, dt)
+        if (!cue.visible) vibrate(haptic, now)
         val pattern = TestPattern.frame
         if (pattern != null) toyLayer.sendRaw(m, pattern, now) else toyLayer.send(m, frame, draft?.brightness ?: s.brightness, now)
         if (now - statAt >= STAT_MS) {
-            Log.i(TAG, "toy=${def.id} sent=$statFrames/${(now - statAt) / 1000}s face=${if (faceDown) "down" else "up"} brightness=${s.brightness} wake=${wakeLock?.isHeld == true}")
+            Log.i(TAG, "toy=${def.id} sent=$statFrames/${(now - statAt) / 1000}s face=${if (faceDown) "down" else "up"} brightness=${s.brightness} wake=${wakeLock?.isHeld == true} cue=${cue.state}")
             statFrames = 0
             statAt = now
         }

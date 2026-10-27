@@ -43,18 +43,20 @@ import com.dotpopart.engine.ToyCatalog
 enum class Screen(val title: String) {
     TOYS("Dot=PopArt"),
     ROTATION("ローテーション"),
+    APP_LINK("アプリ連動"),
     GLYPH("Glyph設定"),
     ABOUT("このアプリについて"),
     LICENSES("オープンソースライセンス"),
 }
 
-private class MenuItem(val screen: Screen, val label: String, val sub: String, val icon: String)
+private class MenuItem(val screen: Screen, val label: String, val icon: String)
 
 private val MENU = listOf(
-    MenuItem(Screen.TOYS, "おもちゃ", "選んで設定する", DotIcons.GRID),
-    MenuItem(Screen.ROTATION, "ローテーション", "選んだおもちゃを順番に", DotIcons.ROTATE),
-    MenuItem(Screen.GLYPH, "Glyph設定", "Glyphインターフェース・電池の最適化", DotIcons.SUN_SMALL),
-    MenuItem(Screen.ABOUT, "このアプリについて", "バージョン・ライセンス", DotIcons.INFO),
+    MenuItem(Screen.TOYS, "おもちゃ", DotIcons.GRID),
+    MenuItem(Screen.ROTATION, "ローテーション", DotIcons.ROTATE),
+    MenuItem(Screen.APP_LINK, "アプリ連動", DotIcons.LINK),
+    MenuItem(Screen.GLYPH, "Glyph設定", DotIcons.SUN_SMALL),
+    MenuItem(Screen.ABOUT, "このアプリについて", DotIcons.INFO),
 )
 
 @Composable
@@ -116,7 +118,7 @@ fun Drawer(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .height(58.dp)
+                        .height(52.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(if (sel) c.selRow else Color.Transparent)
                         .tap(m.label) { onGo(m.screen) }
@@ -126,10 +128,7 @@ fun Drawer(
                 ) {
                     Box(Modifier.size(3.dp, 24.dp).background(if (sel) c.accent else Color.Transparent, RoundedCornerShape(2.dp)))
                     DotIcon(m.icon, 20.dp, if (sel) c.text else c.text2, stroke = 1.8f)
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(m.label, style = TextStyle(fontFamily = DotFonts.sans, fontWeight = FontWeight.Medium, fontSize = 14.sp), color = if (sel) c.text else c.text2)
-                        Text(m.sub, style = TextStyle(fontFamily = DotFonts.sans, fontSize = 11.sp), color = c.text4)
-                    }
+                    Text(m.label, Modifier.weight(1f), style = TextStyle(fontFamily = DotFonts.sans, fontWeight = FontWeight.Medium, fontSize = 14.sp), color = if (sel) c.text else c.text2)
                 }
             }
         }

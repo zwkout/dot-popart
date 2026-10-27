@@ -77,6 +77,7 @@ object DotIcons {
     const val EXTERNAL = "M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"
     const val GRID = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
     const val SUN_SMALL = "M12 3v2M12 19v2M3 12h2M19 12h2M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"
+    const val LINK = "M10.5 13.5a4 4 0 0 0 5.7 0l3.3-3.3a4 4 0 0 0-5.7-5.7l-1.3 1.3M13.5 10.5a4 4 0 0 0-5.7 0l-3.3 3.3a4 4 0 0 0 5.7 5.7l1.3-1.3"
     const val INFO = "M12 8h.01M11 12h1v5h1M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z"
     const val SUN = "M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10z"
     const val MOON = "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"

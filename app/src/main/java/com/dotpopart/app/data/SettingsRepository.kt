@@ -25,8 +25,10 @@ class SettingsRepository(context: Context) {
 
     private fun Preferences.toSettings(): AppSettings {
         val params = HashMap<String, HashMap<String, Float>>()
+        val cues = HashMap<String, Boolean>()
         for ((key, value) in asMap()) {
             val name = key.name
+            if (name.startsWith(APP_CUE_PREFIX) && value is Boolean) cues[name.removePrefix(APP_CUE_PREFIX)] = value
             if (!name.startsWith(TOY_PREFIX) || value !is Float) continue
             val rest = name.removePrefix(TOY_PREFIX)
             val dot = rest.indexOf('.')
@@ -42,6 +44,7 @@ class SettingsRepository(context: Context) {
             rotationInterval = RotationInterval.of(this[ROTATION_INTERVAL]),
             rotationOrder = RotationOrder.of(this[ROTATION_ORDER]),
             buttonAction = ButtonAction.of(this[BUTTON_ACTION]),
+            appCue = cues,
             toyParams = params,
             rotationCursor = this[ROTATION_CURSOR],
             rotationLastSwitch = this[ROTATION_LAST_SWITCH] ?: 0L,
@@ -72,10 +75,12 @@ class SettingsRepository(context: Context) {
     suspend fun setRotationInterval(v: RotationInterval) = store.edit { it[ROTATION_INTERVAL] = v.key }
     suspend fun setRotationOrder(v: RotationOrder) = store.edit { it[ROTATION_ORDER] = v.key }
     suspend fun setButtonAction(v: ButtonAction) = store.edit { it[BUTTON_ACTION] = v.key }
+    suspend fun setAppCue(id: String, on: Boolean) = store.edit { it[booleanPreferencesKey("$APP_CUE_PREFIX$id")] = on }
     suspend fun setPreviewDevice(n: Int) = store.edit { it[PREVIEW_DEVICE] = n }
 
     private companion object {
         const val TOY_PREFIX = "toy."
+        const val APP_CUE_PREFIX = "appCue."
         val ACTIVE_TOY = stringPreferencesKey("activeToy")
         val BRIGHTNESS = intPreferencesKey("brightness")
         val THEME = stringPreferencesKey("theme")

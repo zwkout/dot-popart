@@ -3,6 +3,7 @@ package com.dotpopart.app
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.dotpopart.app.glyph.AppCue
 import com.dotpopart.app.glyph.TestPattern
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,8 @@ import kotlinx.coroutines.launch
  * 明るさの下限を測る縦線を出す／消す（値は実効値。左から1列おきに並ぶ）。
  *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pattern 16,32,48,64,96,128
  *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pattern off
+ * アプリ連動のアニメーション（vwfndr）を、前面のアプリに関係なく出す（START）／消す（END）／元に戻す。
+ *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es cue on|off|auto
  */
 class DebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -23,6 +26,7 @@ class DebugReceiver : BroadcastReceiver() {
         intent.getStringExtra("pattern")?.let { p ->
             if (p == "off") TestPattern.clear() else TestPattern.show(p.split(',').mapNotNull { it.trim().toIntOrNull() })
         }
+        intent.getStringExtra("cue")?.let { AppCue.forced = when (it) { "on" -> true; "off" -> false; else -> null } }
         val done = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {

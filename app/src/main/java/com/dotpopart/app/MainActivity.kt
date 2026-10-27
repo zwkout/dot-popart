@@ -54,6 +54,7 @@ import com.dotpopart.app.data.ThemeMode
 import com.dotpopart.app.device.DeviceInfo
 import com.dotpopart.app.glyph.InputHub
 import com.dotpopart.app.glyph.LiveDraft
+import com.dotpopart.app.glyph.AppCue
 import com.dotpopart.app.glyph.NotificationCounter
 import com.dotpopart.app.ui.PreviewEngine
 import com.dotpopart.app.ui.components.SlideFrom
@@ -67,6 +68,7 @@ import com.dotpopart.app.ui.screens.RotationScreen
 import com.dotpopart.app.ui.screens.Screen
 import com.dotpopart.app.ui.screens.SettingsSheet
 import com.dotpopart.app.ui.screens.SheetDraft
+import com.dotpopart.app.ui.screens.AppLinkScreen
 import com.dotpopart.app.ui.screens.GlyphSettingsScreen
 import com.dotpopart.app.ui.theme.DotMotion
 import com.dotpopart.app.ui.theme.DotTheme
@@ -88,6 +90,7 @@ class MainActivity : ComponentActivity() {
     /** 画面に戻ってきたときに読み直すシステムの状態。 */
     private var batteryExempt by mutableStateOf(false)
     private var notificationAccess by mutableStateOf(false)
+    private var usageAccess by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,6 +104,7 @@ class MainActivity : ComponentActivity() {
         hub.start(fastRate = true)
         batteryExempt = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         notificationAccess = NotificationCounter.isEnabled(this)
+        usageAccess = AppCue.hasAccess(this)
     }
 
     override fun onPause() {
@@ -232,6 +236,11 @@ class MainActivity : ComponentActivity() {
                                 onRequestBatteryExempt = { openBatteryOptimization() },
                                 onButtonAction = { scope.launch { repo.setButtonAction(it) } },
                             )
+                            Screen.APP_LINK -> AppLinkScreen(
+                                s, geo, engine, usageAccess, bottom,
+                                onToggle = { id, on -> scope.launch { repo.setAppCue(id, on) } },
+                                onOpenUsageAccess = { openUsageAccess() },
+                            )
                             Screen.ABOUT -> AboutScreen(s, geo, engine, bottom, onOpenUrl = { openUrl(it) }, onLicenses = { screen = Screen.LICENSES })
                             Screen.LICENSES -> LicensesScreen(bottom)
                         }
@@ -356,6 +365,12 @@ class MainActivity : ComponentActivity() {
         val detail = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
             .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, ComponentName(this, NotificationCounter::class.java).flattenToString())
         runCatching { startActivity(detail) }.onFailure { openSystem(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+    }
+
+    /** 使用状況へのアクセス。このアプリの詳細を開けなければ一覧を開く。 */
+    private fun openUsageAccess() {
+        val detail = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:$packageName"))
+        runCatching { startActivity(detail) }.onFailure { openSystem(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
     }
 
     private fun openUrl(url: String) {
