@@ -9,6 +9,8 @@ import com.dotpopart.engine.Geo
 import com.dotpopart.engine.Inputs
 import com.dotpopart.engine.ToyDef
 import com.dotpopart.engine.ToyRunner
+import kotlin.math.PI
+import kotlin.math.sin
 
 /**
  * 画面内のプレビューをまとめて 10fps で進める。実機のマトリクスと同じエンジン（:toy-engine）を使う。
@@ -40,16 +42,19 @@ class PreviewEngine(val inputs: Inputs) {
 
         fun draw() {
             val a = anim
+            // マップはセンサーを使わず、ゆっくり揺れる擬似の方位で見せる
+            a.heading = (CUE_SWAY_DEG * sin(2 * PI * time / CUE_SWAY_S) + 360) % 360
             if (!live) {
-                a.use(back)
+                // USE の最初のコマを薄く止めて出す。USE が消灯のもの（映画）は、START の途中のコマを使う
+                if (a.darkUse) a.start(CUE_DARK_P, back) else a.use(0.0, back)
                 for (i in back.indices) back[i] *= CUE_IDLE_DIM
                 return
             }
             val t = time % (a.startSeconds + CUE_USE_S + a.endSeconds + CUE_OFF_S)
             when {
                 t < a.startSeconds -> a.start(t / a.startSeconds, back)
-                t < a.startSeconds + CUE_USE_S -> a.use(back)
-                t < a.startSeconds + CUE_USE_S + a.endSeconds -> a.end((t - a.startSeconds - CUE_USE_S) / a.endSeconds, back)
+                t < a.startSeconds + CUE_USE_S -> a.use(t - a.startSeconds, back)
+                t < a.startSeconds + CUE_USE_S + a.endSeconds -> a.end((t - a.startSeconds - CUE_USE_S) / a.endSeconds, CUE_USE_S, back)
                 else -> back.fill(0f)
             }
         }
@@ -145,3 +150,6 @@ class PreviewEngine(val inputs: Inputs) {
 private const val CUE_USE_S = 4.0
 private const val CUE_OFF_S = 1.0
 private const val CUE_IDLE_DIM = 0.35f
+private const val CUE_DARK_P = 0.2
+private const val CUE_SWAY_DEG = 60.0
+private const val CUE_SWAY_S = 9.0

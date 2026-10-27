@@ -87,6 +87,7 @@ private class MatrixImage {
     private var image: ImageBitmap? = null
     private var drawnVersion = Long.MIN_VALUE
     private var drawnFrame: FloatArray? = null
+    private var drawnValues = FloatArray(0)
     private var drawnBrightness = -1f
     private var glowSprite: Bitmap? = null
     private var glowKey = ""
@@ -111,11 +112,18 @@ private class MatrixImage {
             bitmap = bmp
             image = bmp.asImageBitmap()
             drawnVersion = Long.MIN_VALUE
+            drawnFrame = null
         }
         if (version == drawnVersion && frame === drawnFrame && brightness == drawnBrightness) return image!!
+        // コマが進んでも中身が同じなら（止まっているプレビュー、動かない USE など）描き直さない。
+        // 丸を描き直すより、配列を比べるほうがずっと軽い
+        val same = frame === drawnFrame && brightness == drawnBrightness && frame.contentEquals(drawnValues)
         drawnVersion = version
+        if (same) return image!!
         drawnFrame = frame
         drawnBrightness = brightness
+        if (drawnValues.size != frame.size) drawnValues = FloatArray(frame.size)
+        frame.copyInto(drawnValues)
 
         val n = geo.n
         val cell = (inner - gap * (n - 1)) / n

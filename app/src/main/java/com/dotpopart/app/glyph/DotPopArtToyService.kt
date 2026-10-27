@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
  *   以前はアプリ層と切り替えていたが、明るさの差（システムの倍率が層ごとに違う）と、切り替えの遅れ・
  *   固まりが出たのでやめた。画面を上にして置いている間は、計算も送信も止める。
  * - 設定シートを開いている間は、編集中のおもちゃ（LiveDraft）を描く。✓ で保存されると、そのまま続けて描く。
- * - アプリ連動：対象アプリ（vwfndr）を開いている間は、おもちゃの代わりにそのアプリのアニメーションを出す（[AppCue]）。
+ * - アプリ連動：対象アプリ（vwfndr など）を開いている間は、おもちゃの代わりにそのアプリのアニメーションを出す（[AppCue]）。
  *   出ている間もおもちゃの中の時間は進めるが、振動は止める。
  * - WakeLock は、点灯している間（伏せているときも手に持っているときも）、バッテリーの最適化の対象外のときだけ持つ
  *   （画面が消えている間のカクつき・固まり対策。Doze 中は、対象外でないと WakeLock が効かない）。画面を上にして置いている間は外す。
@@ -160,6 +160,7 @@ class DotPopArtToyService : Service() {
         loop?.removeCallbacksAndMessages(null)
         loop?.post {
             hub.stop()
+            cue.pause()
             releaseWake()
         }
         t.quitSafely()
@@ -193,6 +194,7 @@ class DotPopArtToyService : Service() {
                 wasPaused = true
             }
             releaseWake()
+            cue.pause()
             toyLayer.reset()
             fade = 0.0
             lastTickAt = 0
@@ -209,8 +211,9 @@ class DotPopArtToyService : Service() {
         val wantId = draft?.toyId ?: decided
         val wantKey = runnerKeyOf(wantId, s, draft?.params)
         val current = runner
-        // 切り替えは、今のおもちゃをふわっと消してから、次をふわっと出す。設定シートの編集中は待たせない
-        val fadingOut = current != null && wantKey != runnerKey && draft == null && !lastDraft && fade > 0.0
+        // 切り替えは、今のおもちゃをふわっと消してから、次をふわっと出す。設定シートの編集中は待たせない。
+        // アプリ連動のアニメーションを出している間は、それごと消えてしまうので、待たずに切り替える
+        val fadingOut = current != null && wantKey != runnerKey && draft == null && !lastDraft && fade > 0.0 && !cue.visible
         val r = if (fadingOut) current!! else ensureRunner(wantId, s, draft?.params)
         lastDraft = draft != null
         fade = if (fadingOut) fade - dt / FADE_OUT_SEC else fade + dt / FADE_IN_SEC
