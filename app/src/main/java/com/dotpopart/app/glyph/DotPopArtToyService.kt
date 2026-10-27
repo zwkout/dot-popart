@@ -78,6 +78,16 @@ class DotPopArtToyService : Service() {
     private var lastTickAt = 0L
     private var runner: ToyRunner? = null
     private var runnerKey = ""
+
+    /**
+     * ふわっと出し入れする度合い（0：消えている、1：そのまま）。光り始め・持ち上げて再び光るとき・
+     * おもちゃの切り替えで使う。画面を上にして置いたときはシステムが一瞬で消すので、消える側は出し入れできない。
+     */
+    private var fade = 0.0
+
+    /** 前の刻みで、設定シートの編集中のおもちゃを描いていたか（編集中の切り替えは出し入れしない）。 */
+    private var lastDraft = false
+    private var wasPaused = false
     private val inputs = Inputs()
     private var frame = FloatArray(0)
     private val toyLayer = LayerOut(toy = true)
@@ -141,6 +151,7 @@ class DotPopArtToyService : Service() {
         loop = Handler(t.looper)
         nextTick = 0
         lastTickAt = 0
+        fade = 0.0
         loop?.post(tick)
     }
 
@@ -175,19 +186,35 @@ class DotPopArtToyService : Service() {
         val flipped = updateFace(now)
         if (isPaused()) {
             // 画面を上にして置いている間は、システムが LED を消している。何もせず、短めに見に来る
+            if (!wasPaused) {
+                // 持ち上げたとき、システムは最後のコマを出し直すので、消したコマを預けておく。
+                // そのあと、こちらから 0 からふわっと出す
+                toyLayer.sendRaw(m, IntArray(DeviceInfo.geo.size), now)
+                wasPaused = true
+            }
             releaseWake()
             toyLayer.reset()
+            fade = 0.0
             lastTickAt = 0
             schedule(PAUSED_PERIOD_MS)
             return
         }
+        wasPaused = false
         // 伏せているときも手に持っているときも CPU を起こしておく。手に持って画面が消えている間に外すと、
         // CPU が止まって1.2秒ほどコマが届かないことが、数秒おきに起きる
         holdWakeIfAllowed()
 
         // 設定シートを開いている間は、編集中のおもちゃを描く（ローテーションの記録は続ける）
         val decided = decideActive(s, flipped)
-        val r = if (draft != null) ensureRunner(draft.toyId, s, draft.params) else ensureRunner(decided, s)
+        val wantId = draft?.toyId ?: decided
+        val wantKey = runnerKeyOf(wantId, s, draft?.params)
+        val current = runner
+        // 切り替えは、今のおもちゃをふわっと消してから、次をふわっと出す。設定シートの編集中は待たせない
+        val fadingOut = current != null && wantKey != runnerKey && draft == null && !lastDraft && fade > 0.0
+        val r = if (fadingOut) current!! else ensureRunner(wantId, s, draft?.params)
+        lastDraft = draft != null
+        fade = if (fadingOut) fade - dt / FADE_OUT_SEC else fade + dt / FADE_IN_SEC
+        fade = fade.coerceIn(0.0, 1.0)
         inputs.epochMillis = System.currentTimeMillis()
         // 背面から見ると、端末の x 軸（画面側から見た右）は左を向く。マトリクスの配列は背面から見た向きで
         // 左上が (0, 0)（システムの時計のコマで確かめた）なので、重力の x は ax のまま使う
@@ -203,7 +230,11 @@ class DotPopArtToyService : Service() {
         cue.apply(frame, DeviceInfo.geo, s, now, dt)
         if (!cue.visible) vibrate(haptic, now)
         val pattern = TestPattern.frame
-        if (pattern != null) toyLayer.sendRaw(m, pattern, now) else toyLayer.send(m, frame, draft?.brightness ?: s.brightness, now)
+        if (pattern != null) {
+            toyLayer.sendRaw(m, pattern, now)
+        } else {
+            toyLayer.send(m, frame, draft?.brightness ?: s.brightness, now, if (lastDraft) 1.0 else LedMapper.fadeGain(fade))
+        }
         if (now - statAt >= STAT_MS) {
             Log.i(TAG, "toy=${def.id} sent=$statFrames/${(now - statAt) / 1000}s face=${if (faceDown) "down" else "up"} brightness=${s.brightness} wake=${wakeLock?.isHeld == true} cue=${cue.state}")
             statFrames = 0
@@ -218,9 +249,9 @@ class DotPopArtToyService : Service() {
         private var last: IntArray? = null
         private var lastAt = 0L
 
-        fun send(m: com.nothing.ketchum.GlyphMatrixManager, frame: FloatArray, level: Int, now: Long) {
+        fun send(m: com.nothing.ketchum.GlyphMatrixManager, frame: FloatArray, level: Int, now: Long, gain: Double = 1.0) {
             if (colors.size != frame.size) colors = IntArray(frame.size)
-            LedMapper.map(frame, level, colors)
+            LedMapper.map(frame, level, colors, gain)
             sendRaw(m, colors, now)
         }
 
@@ -366,10 +397,16 @@ class DotPopArtToyService : Service() {
     }
 
     /** おもちゃか設定が変わったら作り直す（設定を変えたら最初からやり直す）。 */
+    private fun runnerKeyOf(id: String, s: AppSettings, override: Map<String, Float>?): String {
+        val def = ToyCatalog[id] ?: ToyCatalog.default
+        val params = def.params(override ?: s.paramsOf(def.id))
+        return "${def.id}|${params.asMap()}|${DeviceInfo.matrixLength}"
+    }
+
     private fun ensureRunner(id: String, s: AppSettings, override: Map<String, Float>? = null): ToyRunner {
         val def = ToyCatalog[id] ?: ToyCatalog.default
         val params = def.params(override ?: s.paramsOf(def.id))
-        val key = "${def.id}|${params.asMap()}|${DeviceInfo.matrixLength}"
+        val key = runnerKeyOf(id, s, override)
         val current = runner
         if (current != null && key == runnerKey) return current
         val geo = DeviceInfo.geo
@@ -408,6 +445,10 @@ class DotPopArtToyService : Service() {
     companion object {
         private const val TAG = "DPA"
         const val PERIOD_MS = 100L
+
+        /** ふわっと出す・消すのにかける秒数。 */
+        private const val FADE_IN_SEC = 0.6
+        private const val FADE_OUT_SEC = 0.35
 
         /** ステップの瞬間にも刻むのは、1秒あたりのステップがこれ以下のおもちゃだけ（送る回数を増やしすぎない）。 */
         private const val MAX_STEP_SYNC_RATE = 15.0

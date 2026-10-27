@@ -44,10 +44,29 @@ object LedMapper {
         }
     }
 
-    /** おもちゃの層に送る値。 */
-    fun map(frame: FloatArray, level: Int, out: IntArray) {
+    /**
+     * おもちゃの層に送る値。[gain] は、ふわっと出し入れするときに実効値へ掛ける倍率（0〜1）。
+     * 倍率を掛けると下限（64）より暗くなる点も出るが、出し入れの途中だけなので、そのまま光らせる。
+     * それでも見えないほど暗い点（[FADE_CUT] 未満）は消す。
+     */
+    fun map(frame: FloatArray, level: Int, out: IntArray, gain: Double = 1.0) {
         for (i in frame.indices) {
-            out[i] = (effective(frame[i], level) * TOY_LAYER_GAIN).roundToInt().coerceIn(0, 4095)
+            var e = effective(frame[i], level) * gain
+            if (gain < 1.0 && e < FADE_CUT) e = 0.0
+            out[i] = (e * TOY_LAYER_GAIN).roundToInt().coerceIn(0, 4095)
         }
+    }
+
+    /** これより暗い点は、出し入れの途中では消す（実効値）。 */
+    const val FADE_CUT = 24.0
+
+    /**
+     * ふわっと出し入れするときの倍率。[k]（0〜1）を見た目の明るさが一定の割合で変わるように、
+     * 1/16 から 1 までの指数にする（暗い側でも急に消えて見えない）。0 なら消す。
+     */
+    fun fadeGain(k: Double): Double = when {
+        k <= 0.0 -> 0.0
+        k >= 1.0 -> 1.0
+        else -> 16.0.pow(k - 1)
     }
 }

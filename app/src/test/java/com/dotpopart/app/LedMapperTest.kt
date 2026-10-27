@@ -43,4 +43,23 @@ class LedMapperTest {
         LedMapper.map(floatArrayOf(1f), 3, out)
         assertEquals(4095, out[0])
     }
+
+    /** ふわっと出し入れ：倍率は 0 で消え、1 でそのまま。途中は見た目の明るさが一定の割合で増える。 */
+    @Test
+    fun fadeGainIsSmoothAndEndsExact() {
+        assertEquals(0.0, LedMapper.fadeGain(0.0), 0.0)
+        assertEquals(1.0, LedMapper.fadeGain(1.0), 0.0)
+        assertEquals(1.0 / 16, LedMapper.fadeGain(1e-9), 1e-6)
+        for (k in 1..9) {
+            val a = LedMapper.fadeGain(k / 10.0)
+            val b = LedMapper.fadeGain((k + 1) / 10.0)
+            assertEquals(Math.pow(16.0, 0.1), b / a, 1e-9)
+        }
+        val out = IntArray(2)
+        LedMapper.map(floatArrayOf(1f, 0.14f), 3, out, 0.0)
+        assertEquals(listOf(0, 0), out.toList())
+        LedMapper.map(floatArrayOf(1f, 0.14f), 3, out, 1.0)
+        assertEquals(4095, out[0])
+        assertTrue(out[1] > 0)
+    }
 }
