@@ -44,7 +44,8 @@ import kotlin.math.roundToInt
  * - 設定シートを開いている間は、編集中のおもちゃ（LiveDraft）を描く。✓ で保存されると、そのまま続けて描く。
  * - アプリ連動：対象アプリ（vwfndr）を開いている間は、おもちゃの代わりにそのアプリのアニメーションを出す（[AppCue]）。
  *   出ている間もおもちゃの中の時間は進めるが、振動は止める。
- * - WakeLock は、伏せている間で、かつバッテリーの最適化の対象外のときだけ持つ（Doze 中のカクつき対策。Doze 中は、対象外でないと WakeLock が効かない）。
+ * - WakeLock は、点灯している間（伏せているときも手に持っているときも）、バッテリーの最適化の対象外のときだけ持つ
+ *   （画面が消えている間のカクつき・固まり対策。Doze 中は、対象外でないと WakeLock が効かない）。画面を上にして置いている間は外す。
  */
 class DotPopArtToyService : Service() {
     private val events = object : Handler(Looper.getMainLooper()) {
@@ -180,7 +181,9 @@ class DotPopArtToyService : Service() {
             schedule(PAUSED_PERIOD_MS)
             return
         }
-        if (faceDown || !DeviceInfo.aodOnly) holdWakeIfAllowed() else releaseWake()
+        // 伏せているときも手に持っているときも CPU を起こしておく。手に持って画面が消えている間に外すと、
+        // CPU が止まって1.2秒ほどコマが届かないことが、数秒おきに起きる
+        holdWakeIfAllowed()
 
         // 設定シートを開いている間は、編集中のおもちゃを描く（ローテーションの記録は続ける）
         val decided = decideActive(s, flipped)
@@ -206,7 +209,7 @@ class DotPopArtToyService : Service() {
             statFrames = 0
             statAt = now
         }
-        schedule(PERIOD_MS)
+        schedule(PERIOD_MS, if (r.toy.stepsPerSecond <= MAX_STEP_SYNC_RATE) r.secondsUntilNextStep() else null)
     }
 
     /** おもちゃの層への送信。同じ内容のコマは送らず、他の表示に上書きされても戻るよう1秒に1回は再送する。 */
@@ -241,8 +244,15 @@ class DotPopArtToyService : Service() {
         }
     }
 
-    /** 固定レートで次の刻みを予約する。1周期以上遅れたら（CPU が止まっていたなど）追いつかずに刻み直す。 */
-    private fun schedule(periodMs: Long) {
+    /**
+     * 次の刻みを予約する。刻みは固定レート（[PERIOD_MS] ごと）で、1周期以上遅れたら（CPU が止まっていたなど）
+     * 追いつかずに刻み直す。
+     *
+     * [untilStepSec] があれば、おもちゃが次のステップへ進む瞬間にも刻む。固定レートだけだと、
+     * 1秒に9ステップの DODGE が10fps で送られ、9コマに1回だけ0.2秒止まって見える（ガクガクする）。
+     * ステップの瞬間に描けば、動きの間隔がそろう。
+     */
+    private fun schedule(periodMs: Long, untilStepSec: Double? = null) {
         if (periodMs != PERIOD_MS) {
             // 止まっている間は固定レートにこだわらない。動き出したら刻み直す
             nextTick = 0L
@@ -251,9 +261,14 @@ class DotPopArtToyService : Service() {
         }
         val periodNanos = periodMs * 1_000_000L
         val afterWork = SystemClock.elapsedRealtimeNanos()
-        nextTick = if (nextTick == 0L) afterWork + periodNanos else nextTick + periodNanos
-        if (afterWork - nextTick > periodNanos) nextTick = afterWork + periodNanos
-        loop?.postDelayed(tick, ((nextTick - afterWork) / 1_000_000L).coerceAtLeast(0L))
+        if (nextTick == 0L || afterWork - nextTick > periodNanos) nextTick = afterWork + periodNanos
+        while (nextTick <= afterWork) nextTick += periodNanos
+        var target = nextTick
+        if (untilStepSec != null) {
+            val stepAt = afterWork + (untilStepSec * 1e9).toLong() + STEP_SLACK_NANOS
+            if (stepAt < target - STEP_SLACK_NANOS) target = stepAt
+        }
+        loop?.postDelayed(tick, ((target - afterWork) / 1_000_000L).coerceAtLeast(0L))
     }
 
     /** 画面を上にして置いている間（システムが LED を消す）は止める。 */
@@ -393,6 +408,12 @@ class DotPopArtToyService : Service() {
     companion object {
         private const val TAG = "DPA"
         const val PERIOD_MS = 100L
+
+        /** ステップの瞬間にも刻むのは、1秒あたりのステップがこれ以下のおもちゃだけ（送る回数を増やしすぎない）。 */
+        private const val MAX_STEP_SYNC_RATE = 15.0
+
+        /** ステップの瞬間より少しだけ後に刻む（ちょうどだと丸めでステップが次の刻みにずれるため）。 */
+        private const val STEP_SLACK_NANOS = 3_000_000L
         private const val PAUSED_PERIOD_MS = 250L
         private const val RESEND_MS = 1000L
         private const val STAT_MS = 30_000L

@@ -31,6 +31,9 @@ class ToyRunner(
         if (guard == MAX_STEPS_PER_ADVANCE) pending = 0.0
     }
 
+    /** 次のステップまでの秒数。描画をステップにそろえて、動きの間隔をむらなくするのに使う。 */
+    fun secondsUntilNextStep(): Double = ((1.0 - pending) / toy.stepsPerSecond).coerceAtLeast(0.0)
+
     /** 描いて、円の外・NaN・範囲外を片付けた配列を返す。 */
     fun draw(out: FloatArray) {
         out.fill(0f)
