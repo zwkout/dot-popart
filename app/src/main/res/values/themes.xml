@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+    アプリのテーマ。起動してから画面が出るまでの背景（起動画面とウィンドウ）を、アプリの黒（DotColors.Dark.bg）にそろえる。
+    標準のままだと灰色（#303030）が 0.6 秒ほど出て、黒に切り替わるのが見える。
+    -->
+    <style name="Theme.DotPopArt" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/launch_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/launch_bg</item>
+    </style>
+
+    <color name="launch_bg">#FF0A0A0A</color>
+</resources>

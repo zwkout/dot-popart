@@ -14,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -137,7 +139,16 @@ class MainActivity : ComponentActivity() {
         val settings = s ?: return
         val light = settings.theme == ThemeMode.LIGHT
         LaunchedEffect(light) { setBarStyle(light) }
-        DotTheme(light) { App(settings, top, bottom) }
+        // アプリを起動して最初に画面を出すときだけ、黒からふわっと出す。
+        // 裏から戻ったときや、回転で作り直したときは、すぐに出す
+        val fade = remember { Animatable(if (shown) 1f else 0f) }
+        LaunchedEffect(Unit) {
+            shown = true
+            fade.animateTo(1f, tween(DotMotion.START_FADE_MS, easing = DotMotion.EaseOpen))
+        }
+        DotTheme(light) {
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = fade.value }) { App(settings, top, bottom) }
+        }
     }
 
     @Composable
@@ -369,6 +380,9 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val GLYPH_SETTINGS_ACTION = "android.settings.ACTION_GLYPHS_SETTINGS"
+
+        /** このプロセスで、もう画面を出したか（フェードインは起動して最初の1回だけ）。 */
+        var shown = false
     }
 
     /** システムの画面を開く。同じタスクで開くので、戻るとこのアプリに戻る。 */

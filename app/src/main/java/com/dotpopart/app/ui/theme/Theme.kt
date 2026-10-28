@@ -96,6 +96,8 @@ object DotMotion {
     const val SCREEN_MOVE_MS = 300
     const val THEME_MS = 300
     const val KNOB_MS = 200
+    /** アプリを起動して最初に画面を出すときのフェードイン。 */
+    const val START_FADE_MS = 400
 }
 
 val LocalDot = staticCompositionLocalOf { DotColors.Dark }
