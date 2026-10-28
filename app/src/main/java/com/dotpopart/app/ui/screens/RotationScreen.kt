@@ -110,7 +110,7 @@ fun RotationScreen(
         }
         item(key = "toys") {
             Row(body.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                SectionLabel("ローテーションするおもちゃ")
+                SectionLabel("ローテーションする Toys")
                 val count = ToyCatalog.all.count { it.id in s.rotationToys }
                 Text("$count / ${ToyCatalog.all.size}", style = TextStyle(fontFamily = DotFonts.mono, fontSize = 12.sp), color = c.text3)
             }

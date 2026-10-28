@@ -25,7 +25,7 @@ enum class RotationOrder(val key: String, val label: String) {
 
 /** Glyph ボタンの長押し（Phone (3) だけ）。 */
 enum class ButtonAction(val key: String, val label: String) {
-    NEXT("next", "次のおもちゃへ"),
+    NEXT("next", "次の Toys へ"),
     ACT("act", "試し操作"),
     ;
 

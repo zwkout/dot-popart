@@ -52,7 +52,7 @@ enum class Screen(val title: String) {
 private class MenuItem(val screen: Screen, val label: String, val icon: String)
 
 private val MENU = listOf(
-    MenuItem(Screen.TOYS, "おもちゃ", DotIcons.GRID),
+    MenuItem(Screen.TOYS, "Toys", DotIcons.GRID),
     MenuItem(Screen.ROTATION, "ローテーション", DotIcons.ROTATE),
     MenuItem(Screen.APP_LINK, "アプリ連動", DotIcons.LINK),
     MenuItem(Screen.GLYPH, "Glyph設定", DotIcons.SUN_SMALL),
