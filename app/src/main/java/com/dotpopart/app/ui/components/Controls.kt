@@ -96,9 +96,9 @@ fun Modifier.tap(label: String? = null, role: Role = Role.Button, enabled: Boole
         .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier)
 }
 
-/** 52×32 のスイッチ。つまみは 200ms で動く。 */
+/** 52×32 のスイッチ。つまみは 200ms で動く。[onChange] が null なら見せるだけ（押すのは外側のカード）。 */
 @Composable
-fun DotSwitch(on: Boolean, label: String, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+fun DotSwitch(on: Boolean, label: String, enabled: Boolean = true, onChange: ((Boolean) -> Unit)?) {
     val c = LocalDot.current
     val track by animateColorAsState(if (on) c.inv else c.border2, tween(DotMotion.KNOB_MS), label = "track")
     val knob by animateColorAsState(if (on) c.invText else c.offKnob, tween(DotMotion.KNOB_MS), label = "knob")
@@ -108,7 +108,7 @@ fun DotSwitch(on: Boolean, label: String, enabled: Boolean = true, onChange: (Bo
             .size(52.dp, 32.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(track)
-            .tap(label, Role.Switch, enabled) { onChange(!on) }
+            .then(if (onChange != null) Modifier.tap(label, Role.Switch, enabled) { onChange(!on) } else Modifier)
             .padding(4.dp),
         contentAlignment = Alignment.CenterStart,
     ) {

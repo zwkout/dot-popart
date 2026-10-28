@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -119,7 +121,7 @@ private fun UsageAccessButton(onClick: () -> Unit) {
 }
 
 /**
- * 一覧のカードと同じ寸法。押しても何も開かない。
+ * 一覧のカードと同じ寸法。カードのどこを押しても、オン／オフが切り替わる（右のスイッチは見せるだけ）。
  * 2 つのアプリをまとめたカードは、名前を 2 行に並べる。スイッチは、どれかがオンならオンとして出す。
  */
 @Composable
@@ -134,8 +136,10 @@ private fun AppCueCard(targets: List<AppCueTarget>, s: AppSettings, geo: Geo, en
         Modifier
             .fillMaxWidth()
             .height(96.dp)
-            .background(c.surface, shape)
+            .clip(shape)
+            .background(c.surface)
             .border(1.dp, c.border, shape)
+            .tap("$label のアプリ連動", Role.Switch, enabled = usageAccess) { onChange(!on) }
             .padding(start = 12.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -155,7 +159,7 @@ private fun AppCueCard(targets: List<AppCueTarget>, s: AppSettings, geo: Geo, en
             }
         }
         Box(Modifier.alpha(if (usageAccess) 1f else 0.35f)) {
-            DotSwitch(on, "$label のアプリ連動", enabled = usageAccess, onChange = onChange)
+            DotSwitch(on, "$label のアプリ連動", enabled = usageAccess, onChange = null)
         }
     }
 }
