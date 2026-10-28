@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -245,12 +244,9 @@ fun DotCard(modifier: Modifier = Modifier, radius: Dp = 18.dp, content: @Composa
     ) { content() }
 }
 
-/** 見出し＋説明の2行。 */
+/** カードの見出し。 */
 @Composable
-fun TitleDesc(title: String, desc: String?, modifier: Modifier = Modifier, titleSize: Float = 14f, bold: Boolean = false) {
+fun CardTitle(title: String, modifier: Modifier = Modifier, titleSize: Float = 14f, bold: Boolean = false) {
     val c = LocalDot.current
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(title, style = TextStyle(fontFamily = DotFonts.sans, fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium, fontSize = titleSize.sp), color = c.text)
-        if (desc != null) Text(desc, style = TextStyle(fontFamily = DotFonts.sans, fontSize = 12.sp, lineHeight = 18.sp), color = c.text3)
-    }
+    Text(title, modifier, style = TextStyle(fontFamily = DotFonts.sans, fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium, fontSize = titleSize.sp), color = c.text)
 }

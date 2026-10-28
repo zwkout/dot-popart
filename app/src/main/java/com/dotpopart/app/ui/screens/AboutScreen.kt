@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,12 +65,6 @@ fun AboutScreen(
         MatrixWindow(frame, geo, engine, 196.dp, 172.dp, 3f, 1.3f, 8f, s.brightness)
         Text("Dot=PopArt", Modifier.padding(top = 8.dp), style = TextStyle(fontFamily = DotFonts.doto, fontWeight = FontWeight.Black, fontSize = 44.sp, lineHeight = 44.sp), color = c.text)
         Text("VERSION ${BuildConfig.VERSION_NAME}", style = TextStyle(fontFamily = DotFonts.mono, fontSize = 11.sp, letterSpacing = 0.14.em()), color = c.text4)
-        Text(
-            "Nothing Phone (3) / (4a) Pro の\nGlyph Matrix で遊ぶ、小さなおもちゃ集。",
-            style = TextStyle(fontFamily = DotFonts.sans, fontSize = 13.sp, lineHeight = 22.sp),
-            color = c.text3,
-            textAlign = TextAlign.Center,
-        )
         DotCard(Modifier.fillMaxWidth().padding(top = 8.dp)) {
             Column {
                 AboutLinks.FEEDBACK?.let { url -> LinkRow("フィードバックを送る", external = true, divider = true) { onOpenUrl(url) } }

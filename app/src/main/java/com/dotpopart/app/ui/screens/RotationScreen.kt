@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,7 +43,7 @@ import com.dotpopart.app.ui.components.DotSwitch
 import com.dotpopart.app.ui.components.MatrixWindow
 import com.dotpopart.app.ui.components.SectionLabel
 import com.dotpopart.app.ui.components.Segmented
-import com.dotpopart.app.ui.components.TitleDesc
+import com.dotpopart.app.ui.components.CardTitle
 import com.dotpopart.app.ui.components.tap
 import com.dotpopart.app.ui.theme.DotFonts
 import com.dotpopart.app.ui.theme.LocalDot
@@ -72,7 +71,7 @@ fun RotationScreen(
     ) {
         DotCard(Modifier.fillMaxWidth(), radius = 20.dp) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TitleDesc("ローテーション", "選んだおもちゃを順番にマトリクスへ", Modifier.weight(1f), titleSize = 15f, bold = true)
+                CardTitle("ローテーション", Modifier.weight(1f), titleSize = 15f, bold = true)
                 DotSwitch(on, "ローテーション", onChange = onEnabled)
             }
         }
@@ -111,10 +110,7 @@ fun RotationScreen(
                         ) {
                             val frame = engine.frame("L:${def.id}", def, s.paramsOf(def.id), geo)
                             MatrixWindow(frame, geo, engine, 42.dp, 34.dp, 0.6f, 0.25f, 2f, s.brightness, border = false)
-                            Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text(def.en, style = TextStyle(fontFamily = DotFonts.doto, fontWeight = FontWeight.Black, fontSize = 18.sp, lineHeight = 18.sp), color = c.text, maxLines = 1)
-                                Text(def.ja, style = TextStyle(fontFamily = DotFonts.sans, fontSize = 12.sp), color = c.text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
+                            Text(def.en, Modifier.weight(1f), style = TextStyle(fontFamily = DotFonts.doto, fontWeight = FontWeight.Black, fontSize = 18.sp, lineHeight = 18.sp), color = c.text, maxLines = 1)
                             CheckCircle(checked)
                         }
                     }

@@ -97,10 +97,14 @@ fun SettingsSheet(
                 Modifier.size(48.dp).clip(CircleShape).border(1.dp, c.border2, CircleShape).tap("変更を破棄して閉じる", onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) { DotIcon(DotIcons.CLOSE, 20.dp, c.text) }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(def.en, style = TextStyle(fontFamily = DotFonts.doto, fontWeight = FontWeight.Black, fontSize = 26.sp, letterSpacing = 0.05.em()), color = c.text, maxLines = 1)
-                Text(def.rule, style = TextStyle(fontFamily = DotFonts.sans, fontSize = 12.sp), color = c.text3, textAlign = TextAlign.Center)
-            }
+            Text(
+                def.en,
+                Modifier.weight(1f),
+                style = TextStyle(fontFamily = DotFonts.doto, fontWeight = FontWeight.Black, fontSize = 26.sp, letterSpacing = 0.05.em()),
+                color = c.text,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+            )
             Box(
                 Modifier.size(48.dp).clip(CircleShape).background(c.inv).tap("保存して適用", onClick = onSave),
                 contentAlignment = Alignment.Center,
