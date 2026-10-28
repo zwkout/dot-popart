@@ -45,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -97,7 +98,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         repo = (application as DotPopArtApp).settings
         hub = InputHub(this)
+        // 最初のコマより前に端まで描く設定にしておく。後から切り替えると、ステータスバーの高さが
+        // 最初の数コマだけ 0 になり、ヘッダーが上に描かれてから下へずれる。色はテーマが読めてから合わせる
+        setBarStyle(light = false)
         setContent { AppRoot() }
+    }
+
+    private fun setBarStyle(light: Boolean) {
+        val style = if (light) {
+            SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        }
+        enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
     }
 
     override fun onResume() {
@@ -116,22 +129,19 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun AppRoot() {
+        // バーの高さは、設定を読み終える前から読んでおく。Compose は読まれてから高さを追い始めるので、
+        // 画面を出すときに初めて読むと、最初の数コマだけ 0 になってヘッダーが下へずれる
+        val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val s by repo.settings.collectAsState(initial = null)
         val settings = s ?: return
         val light = settings.theme == ThemeMode.LIGHT
-        LaunchedEffect(light) {
-            val style = if (light) {
-                SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
-            } else {
-                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-            }
-            enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-        }
-        DotTheme(light) { App(settings) }
+        LaunchedEffect(light) { setBarStyle(light) }
+        DotTheme(light) { App(settings, top, bottom) }
     }
 
     @Composable
-    private fun App(s: AppSettings) {
+    private fun App(s: AppSettings, top: Dp, bottom: Dp) {
         val c = LocalDot.current
         val scope = rememberCoroutineScope()
         var screen by remember { mutableStateOf(Screen.TOYS) }
@@ -150,8 +160,6 @@ class MainActivity : ComponentActivity() {
         // 隠しているときは、前に選んだ端末が残っていても実機に合わせる
         val preview = if (unlocked) s.previewDevice else 0
         val geo: Geo = if (preview == 13 || preview == 25) Geo.of(preview) else DeviceInfo.geo
-        val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
         // プレビューを 10fps で進める。計算は裏のスレッドで行い、UI スレッドはコマの差し替えだけ。
         // ここでは engine.version を読まない（読むと画面全体が 0.1秒ごとに作り直される）。
