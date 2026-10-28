@@ -62,4 +62,18 @@ class LedMapperTest {
         assertEquals(4095, out[0])
         assertTrue(out[1] > 0)
     }
+
+    /** ふわっと出し入れしている間（倍率が 0 と 1 の間）は、見えないほど暗い点（FADE_CUT 未満）を消す。 */
+    @Test
+    fun fadeDropsPointsBelowCut() {
+        val frame = floatArrayOf(1f, 0.14f)
+        val out = IntArray(2)
+        val gain = LedMapper.FADE_CUT / LedMapper.effective(0.14f, 0) * 0.99
+        LedMapper.map(frame, 0, out, gain)
+        assertTrue(out[0] > 0)
+        assertEquals(0, out[1])
+        // 倍率 1 では消さない
+        LedMapper.map(frame, 0, out, 1.0)
+        assertTrue(out[1] > 0)
+    }
 }

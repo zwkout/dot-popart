@@ -50,6 +50,24 @@ class RotationTest {
         assertFalse(Rotation.due(base.copy(rotationLastSwitch = 0L), 10 * hour, false))
     }
 
+    /** 時計が戻ったときは切り替えず、起点を取り直す（戻した幅のぶん待たない）。 */
+    @Test
+    fun clockGoingBackRestartsInsteadOfWaiting() {
+        val back = base.rotationLastSwitch - 10 * hour
+        assertFalse(Rotation.due(base, back, flipped = false))
+        assertTrue(Rotation.needsStart(base, back))
+        assertFalse(Rotation.needsStart(base, base.rotationLastSwitch))
+        assertTrue(Rotation.needsStart(base.copy(rotationLastSwitch = 0L), 10 * hour))
+    }
+
+    /** 点灯中のおもちゃも cursor もリストにないときは、リストの先頭から。 */
+    @Test
+    fun nextStartsFromTopWhenNothingIsInList() {
+        val outside = base.copy(activeToy = "maze", rotationCursor = "sand")
+        assertEquals("pong", Rotation.next(outside))
+        assertEquals("pong", Rotation.next(outside.copy(rotationCursor = null)))
+    }
+
     /** ✓ で割り込んでも、次の切り替えではローテーションの続き（cursor の次）に戻る。 */
     @Test
     fun interruptReturnsToCursor() {

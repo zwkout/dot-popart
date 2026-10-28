@@ -139,7 +139,7 @@ private fun AppCueCard(targets: List<AppCueTarget>, s: AppSettings, geo: Geo, en
             .clip(shape)
             .background(c.surface)
             .border(1.dp, c.border, shape)
-            .tap("$label のアプリ連動", Role.Switch, enabled = usageAccess) { onChange(!on) }
+            .tap("$label のアプリ連動", Role.Switch, enabled = usageAccess, state = on) { onChange(!on) }
             .padding(start = 12.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),

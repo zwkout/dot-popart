@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dotpopart.app.BuildConfig
 import com.dotpopart.app.data.AppSettings
+import com.dotpopart.app.device.DeviceInfo
 import com.dotpopart.app.ui.PreviewEngine
 import com.dotpopart.app.ui.components.DotCard
 import com.dotpopart.app.ui.components.DotIcon
@@ -70,7 +71,7 @@ fun AboutScreen(
                 AboutLinks.FEEDBACK?.let { url -> LinkRow("フィードバックを送る", external = true, divider = true) { onOpenUrl(url) } }
                 LinkRow("オープンソースライセンス", external = false, divider = true, onClick = onLicenses)
                 AboutLinks.PRIVACY?.let { url -> LinkRow("プライバシーポリシー", external = true, divider = true) { onOpenUrl(url) } }
-                LinkRow("Glyph Toys Playground", external = true, divider = false) { onOpenUrl(AboutLinks.playground(geo.big)) }
+                LinkRow("Glyph Toys Playground", external = true, divider = false) { onOpenUrl(AboutLinks.playground(DeviceInfo.geo.big)) }
             }
         }
         Text("PHONE (3) · PHONE (4a) PRO", Modifier.padding(top = 8.dp), style = TextStyle(fontFamily = DotFonts.mono, fontSize = 10.sp, letterSpacing = 0.1.em()), color = c.text4)
@@ -106,8 +107,9 @@ fun LicensesScreen(bottomInset: Dp) {
                     Text("${l.holder} · ${l.kind}", style = TextStyle(fontFamily = DotFonts.sans, fontSize = 12.sp), color = c.text3)
                     if (l.file != null) {
                         if (open) {
+                            val text = remember(l.file) { readAsset(context, "licenses/${l.file}") }
                             Text(
-                                readAsset(context, "licenses/${l.file}"),
+                                text,
                                 Modifier.padding(top = 8.dp),
                                 style = TextStyle(fontFamily = DotFonts.mono, fontSize = 10.sp, lineHeight = 15.sp),
                                 color = c.text2,

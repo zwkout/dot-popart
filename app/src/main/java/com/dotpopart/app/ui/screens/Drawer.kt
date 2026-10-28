@@ -147,7 +147,7 @@ fun Drawer(
                         .height(40.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (sel) c.inv else Color.Transparent)
-                        .tap(label, Role.RadioButton) { onLight(light) },
+                        .tap(label, Role.RadioButton, state = sel) { onLight(light) },
                     contentAlignment = Alignment.Center,
                 ) {
                     DotIcon(icon, 20.dp, if (sel) c.invText else c.text3, stroke = 1.8f)

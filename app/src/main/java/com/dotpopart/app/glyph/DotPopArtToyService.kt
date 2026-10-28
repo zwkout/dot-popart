@@ -24,11 +24,13 @@ import com.dotpopart.engine.Inputs
 import com.dotpopart.engine.ToyCatalog
 import com.dotpopart.engine.ToyRunner
 import com.nothing.ketchum.GlyphToy
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 import kotlin.math.roundToInt
 
 /**
@@ -59,7 +61,10 @@ class DotPopArtToyService : Service() {
     }
     private val messenger = Messenger(events)
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // 設定の書き込みが失敗しても（ファイルの読み書きのエラーなど）、プロセスごと落とさない
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> Log.e(TAG, "settings write failed", e) },
+    )
     private lateinit var repo: SettingsRepository
     private lateinit var hub: InputHub
     private lateinit var cue: AppCue
@@ -70,14 +75,18 @@ class DotPopArtToyService : Service() {
     @Volatile private var buttonLongPress = false
 
     @Volatile private var bound = false
-    private var thread: HandlerThread? = null
-    private var loop: Handler? = null
+    @Volatile private var thread: HandlerThread? = null
+    @Volatile private var loop: Handler? = null
 
     // ここから下はループのスレッドだけが触る
     private var nextTick = 0L
     private var lastTickAt = 0L
     private var runner: ToyRunner? = null
     private var runnerKey = ""
+
+    /** 前の刻みでキーを作ったときの設定と編集中の値（同じなら、キーを作り直さない）。 */
+    private var keyFor: Triple<String, AppSettings, LiveDraft.Draft?>? = null
+    private var keyCached = ""
 
     /**
      * ふわっと出し入れする度合い（0：消えている、1：そのまま）。光り始め・持ち上げて再び光るとき・
@@ -90,15 +99,19 @@ class DotPopArtToyService : Service() {
     private var wasPaused = false
     private val inputs = Inputs()
     private var frame = FloatArray(0)
-    private val toyLayer = LayerOut(toy = true)
+    private val toyLayer = LayerOut()
     private var faceDown = false
     private var faceSince = 0L
     private var upSince = 0L
     private var flatUp = false
     private var flatSince = 0L
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wakeAt = 0L
+    private var exempt = false
+    private var exemptCheckedAt = 0L
     private var lastHaptic = 0L
     private var pendingActive: String? = null
+    private var pendingAt = 0L
     private var rotationWriteAt = 0L
     private var statFrames = 0
     private var statAt = 0L
@@ -128,8 +141,8 @@ class DotPopArtToyService : Service() {
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "onUnbind")
         bound = false
+        // 刻みが終わるのを待ってから片付ける（待たないと、消したあとに古いコマが送られることがある）
         stopLoop()
-        GlyphLink.serviceDrawing = false
         // 最後に描いていた層を片付ける（アプリ層に turnOff を使うと、戻した表示の上に黒を重ねてしまう）
         GlyphLink.manager?.let { m ->
             runCatching { m.turnOff() }
@@ -155,20 +168,40 @@ class DotPopArtToyService : Service() {
         loop?.post(tick)
     }
 
+    /**
+     * ループを止める。後始末はループのスレッドで行い、終わるまで待つ（刻みは数 ms なので、待つのは短い）。
+     * 待たないと、すぐに作り直した新しいループのセンサーを、古いスレッドの後始末が外してしまう。
+     */
     private fun stopLoop() {
         val t = thread ?: return
-        loop?.removeCallbacksAndMessages(null)
-        loop?.post {
+        val h = loop
+        thread = null
+        loop = null
+        h?.removeCallbacksAndMessages(null)
+        h?.post {
             hub.stop()
             cue.pause()
             releaseWake()
         }
         t.quitSafely()
-        thread = null
-        loop = null
+        runCatching { t.join(STOP_WAIT_MS) }
     }
 
-    private val tick = Runnable { runTick() }
+    /**
+     * 刻みの中で例外が出ても、プロセスごと落とさず、おもちゃを作り直して次の刻みへ進む
+     * （ループのスレッドの例外は、アプリ全体を落とす）。
+     */
+    private val tick = Runnable {
+        try {
+            runTick()
+        } catch (e: Exception) {
+            Log.e(TAG, "tick failed", e)
+            runner = null
+            runnerKey = ""
+            keyFor = null
+            schedule(PERIOD_MS)
+        }
+    }
 
     private fun runTick() {
         val now = SystemClock.elapsedRealtime()
@@ -180,7 +213,6 @@ class DotPopArtToyService : Service() {
             schedule(PERIOD_MS)
             return
         }
-        GlyphLink.serviceDrawing = true
         val draft = LiveDraft.current
         val def = ToyCatalog[draft?.toyId ?: pendingActive ?: s.activeToy] ?: ToyCatalog.default
         hub.start(fastRate = !isPaused() && def.usesTilt)
@@ -204,21 +236,23 @@ class DotPopArtToyService : Service() {
         wasPaused = false
         // 伏せているときも手に持っているときも CPU を起こしておく。手に持って画面が消えている間に外すと、
         // CPU が止まって1.2秒ほどコマが届かないことが、数秒おきに起きる
-        holdWakeIfAllowed()
+        holdWakeIfAllowed(now)
 
         // 設定シートを開いている間は、編集中のおもちゃを描く（ローテーションの記録は続ける）
         val decided = decideActive(s, flipped)
         val wantId = draft?.toyId ?: decided
-        val wantKey = runnerKeyOf(wantId, s, draft?.params)
+        val wantKey = runnerKeyOf(wantId, s, draft)
         val current = runner
         // 切り替えは、今のおもちゃをふわっと消してから、次をふわっと出す。設定シートの編集中は待たせない。
         // アプリ連動のアニメーションを出している間は、それごと消えてしまうので、待たずに切り替える
         val fadingOut = current != null && wantKey != runnerKey && draft == null && !lastDraft && fade > 0.0 && !cue.visible
-        val r = if (fadingOut) current!! else ensureRunner(wantId, s, draft?.params)
+        val r = if (fadingOut) current!! else ensureRunner(wantId, s, draft?.params, wantKey)
         lastDraft = draft != null
         fade = if (fadingOut) fade - dt / FADE_OUT_SEC else fade + dt / FADE_IN_SEC
         fade = fade.coerceIn(0.0, 1.0)
         inputs.epochMillis = System.currentTimeMillis()
+        // 開いたままタイムゾーンが変わっても、時刻のおもちゃが新しい時刻で動くよう、毎回入れ直す
+        inputs.zone = ZoneId.systemDefault()
         // 背面から見ると、端末の x 軸（画面側から見た右）は左を向く。マトリクスの配列は背面から見た向きで
         // 左上が (0, 0)（システムの時計のコマで確かめた）なので、重力の x は ax のまま使う
         inputs.gravityX = hub.ax
@@ -247,10 +281,11 @@ class DotPopArtToyService : Service() {
     }
 
     /** おもちゃの層への送信。同じ内容のコマは送らず、他の表示に上書きされても戻るよう1秒に1回は再送する。 */
-    private inner class LayerOut(val toy: Boolean) {
+    private inner class LayerOut {
         private var colors = IntArray(0)
         private var last: IntArray? = null
         private var lastAt = 0L
+        private var failLoggedAt = 0L
 
         fun send(m: com.nothing.ketchum.GlyphMatrixManager, frame: FloatArray, level: Int, now: Long, gain: Double = 1.0) {
             if (colors.size != frame.size) colors = IntArray(frame.size)
@@ -268,7 +303,11 @@ class DotPopArtToyService : Service() {
                 lastAt = now
                 statFrames++
             } catch (e: Exception) {
-                Log.w(TAG, "send failed: ${e.message}")
+                // 送れない状態が続くと1秒に10回出るので、間引く
+                if (failLoggedAt == 0L || now - failLoggedAt >= STAT_MS) {
+                    Log.w(TAG, "send failed: ${e.message}")
+                    failLoggedAt = now
+                }
             }
         }
 
@@ -308,9 +347,11 @@ class DotPopArtToyService : Service() {
     /** 画面を上にして置いている間（システムが LED を消す）は止める。 */
     private fun isPaused(): Boolean = DeviceInfo.aodOnly && flatUp
 
-    /** 伏せたかどうかを更新する。「伏せるたび」のために、伏せた瞬間なら true を返す。 */
+    /**
+     * 伏せたかどうかを更新する。「伏せるたび」のために、伏せた瞬間なら true を返す。
+     * Phone (3) でも「伏せるたび」に使うので、どの端末でも判定する（止めるのは (4a) Pro だけ。[isPaused]）。
+     */
     private fun updateFace(now: Long): Boolean {
-        if (!DeviceInfo.aodOnly) return false
         // システムの向きのセンサーがあれば、それに従う（LED の切り替えと完全にそろう）
         val sys = hub.systemFace
         if (sys >= 0) {
@@ -369,11 +410,13 @@ class DotPopArtToyService : Service() {
 
     /** ローテーションと Glyph ボタンで、今出すおもちゃを決める。保存は非同期なので、反映されるまで手元で覚えておく。 */
     private fun decideActive(s: AppSettings, flipped: Boolean): String {
-        if (pendingActive == s.activeToy) pendingActive = null
         val wall = System.currentTimeMillis()
+        // 反映されたら手元の値を捨てる。途中の状態を取りこぼしたときや、書き込みが失敗したときも、しばらくしたら捨てる
+        if (pendingActive == s.activeToy || wall - pendingAt >= WRITE_GRACE_MS) pendingActive = null
         val writing = wall - rotationWriteAt < WRITE_GRACE_MS
         if (!writing && Rotation.active(s)) {
-            if (s.rotationLastSwitch <= 0L) {
+            if (Rotation.needsStart(s, wall)) {
+                // 初めて動いたとき・時計が戻ったときは、今を起点にする
                 rotationWriteAt = wall
                 scope.launch { repo.markRotationStart(wall) }
             } else if (Rotation.due(s, wall, flipped)) {
@@ -383,8 +426,9 @@ class DotPopArtToyService : Service() {
         if (buttonLongPress) {
             buttonLongPress = false
             val def = ToyCatalog[pendingActive ?: s.activeToy]
-            if (s.buttonAction == ButtonAction.ACT && def?.action != null) {
-                runner?.toy?.act()
+            if (s.buttonAction == ButtonAction.ACT && def?.action != null && def.actsOnDevice) {
+                // 切り替えのフェードアウト中は、消えかけの前のおもちゃには効かせない
+                runner?.takeIf { it.def.id == def.id }?.toy?.act()
             } else {
                 switchTo(Rotation.manualNext(s), wall, rotation = Rotation.active(s))
             }
@@ -395,23 +439,30 @@ class DotPopArtToyService : Service() {
     private fun switchTo(id: String, wall: Long, rotation: Boolean) {
         Log.i(TAG, "switch to $id rotation=$rotation")
         pendingActive = id
+        pendingAt = wall
         rotationWriteAt = wall
         scope.launch { if (rotation) repo.rotateTo(id, wall) else repo.applyToy(id, emptyMap()) }
     }
 
-    /** おもちゃか設定が変わったら作り直す（設定を変えたら最初からやり直す）。 */
-    private fun runnerKeyOf(id: String, s: AppSettings, override: Map<String, Float>?): String {
+    /**
+     * おもちゃか設定が変わったら作り直す（設定を変えたら最初からやり直す）。
+     * 設定と編集中の値が前の刻みと同じもの（同じ参照）なら、前のキーを使い回す。
+     */
+    private fun runnerKeyOf(id: String, s: AppSettings, draft: LiveDraft.Draft?): String {
+        val k = keyFor
+        if (k != null && k.first == id && k.second === s && k.third === draft) return keyCached
         val def = ToyCatalog[id] ?: ToyCatalog.default
-        val params = def.params(override ?: s.paramsOf(def.id))
-        return "${def.id}|${params.asMap()}|${DeviceInfo.matrixLength}"
+        val params = def.params(draft?.params ?: s.paramsOf(def.id))
+        keyCached = "${def.id}|${params.asMap()}|${DeviceInfo.matrixLength}"
+        keyFor = Triple(id, s, draft)
+        return keyCached
     }
 
-    private fun ensureRunner(id: String, s: AppSettings, override: Map<String, Float>? = null): ToyRunner {
-        val def = ToyCatalog[id] ?: ToyCatalog.default
-        val params = def.params(override ?: s.paramsOf(def.id))
-        val key = runnerKeyOf(id, s, override)
+    private fun ensureRunner(id: String, s: AppSettings, override: Map<String, Float>?, key: String): ToyRunner {
         val current = runner
         if (current != null && key == runnerKey) return current
+        val def = ToyCatalog[id] ?: ToyCatalog.default
+        val params = def.params(override ?: s.paramsOf(def.id))
         val geo = DeviceInfo.geo
         frame = FloatArray(geo.size)
         toyLayer.reset()
@@ -428,8 +479,16 @@ class DotPopArtToyService : Service() {
         runCatching { vibrator?.vibrate(VibrationEffect.createOneShot(18, amp)) }
     }
 
-    private fun holdWakeIfAllowed() {
-        if (!power.isIgnoringBatteryOptimizations(packageName)) {
+    /**
+     * 省電力の判定と WakeLock の取り直しは、どちらもシステムへの呼び出し（IPC）なので、毎刻みは行わない。
+     * 判定は [EXEMPT_CHECK_MS] ごと、取り直しは期限の半分ごと。
+     */
+    private fun holdWakeIfAllowed(now: Long) {
+        if (exemptCheckedAt == 0L || now - exemptCheckedAt >= EXEMPT_CHECK_MS) {
+            exempt = power.isIgnoringBatteryOptimizations(packageName)
+            exemptCheckedAt = now
+        }
+        if (!exempt) {
             releaseWake()
             return
         }
@@ -438,7 +497,10 @@ class DotPopArtToyService : Service() {
             wakeLock = it
         }
         // 取りっぱなしにならないよう、期限つきで取り直し続ける
-        wl.acquire(WAKE_TIMEOUT_MS)
+        if (!wl.isHeld || now - wakeAt >= WAKE_TIMEOUT_MS / 2) {
+            wl.acquire(WAKE_TIMEOUT_MS)
+            wakeAt = now
+        }
     }
 
     private fun releaseWake() {
@@ -466,5 +528,9 @@ class DotPopArtToyService : Service() {
         private const val FLIP_MIN_UP_MS = 3000L
         private const val WRITE_GRACE_MS = 3000L
         private const val WAKE_TIMEOUT_MS = 60_000L
+        private const val EXEMPT_CHECK_MS = 5_000L
+
+        /** ループを止めるとき、最後の刻みと後始末を待つ上限。 */
+        private const val STOP_WAIT_MS = 500L
     }
 }

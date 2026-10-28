@@ -9,6 +9,8 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.BatteryManager
+import android.os.Handler
+import android.os.Looper
 
 /**
  * センサーと電池の入力をまとめる。サービスとアプリ内のプレビューの両方で使う。
@@ -66,12 +68,17 @@ class InputHub(context: Context) : SensorEventListener {
         }
     }
 
+    /**
+     * 値は、呼んだスレッド（サービスならループのスレッド、画面ならメイン）に届ける。
+     * サービスの値をメインに届けると、画面を出していてメインが忙しいときに傾きが遅れる。
+     */
     private fun registerSensor(fastRate: Boolean) {
         fast = fastRate
+        val handler = Looper.myLooper()?.let { Handler(it) }
         accel?.let {
-            sensors?.registerListener(this, it, if (fastRate) SensorManager.SENSOR_DELAY_GAME else SensorManager.SENSOR_DELAY_NORMAL)
+            sensors?.registerListener(this, it, if (fastRate) SensorManager.SENSOR_DELAY_GAME else SensorManager.SENSOR_DELAY_NORMAL, handler)
         }
-        faceSensor?.let { sensors?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        faceSensor?.let { sensors?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL, handler) }
     }
 
     fun stop() {

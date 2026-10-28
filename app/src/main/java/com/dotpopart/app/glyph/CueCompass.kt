@@ -5,6 +5,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Handler
+import android.os.Looper
 import kotlin.math.atan2
 
 /**
@@ -23,10 +25,11 @@ class CueCompass(context: Context) : SensorEventListener {
     @Volatile var heading = 0.0
         private set
 
+    /** 値は、呼んだスレッド（ループのスレッド）に届ける。 */
     fun start() {
         if (on || sensor == null) return
         on = true
-        sensors.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+        sensors.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI, Looper.myLooper()?.let { Handler(it) })
     }
 
     fun stop() {

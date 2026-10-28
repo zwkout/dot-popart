@@ -12,15 +12,20 @@ object Rotation {
 
     /**
      * 時間で切り替えるときが来たか。「伏せるたび」は [flipped]（伏せた瞬間）で判定する。
-     * 一度も切り替えていない（lastSwitch = 0）ときは、今を起点にするだけで切り替えない。
+     * 起点を取り直すべきとき（[needsStart]）は切り替えない。
      */
     fun due(s: AppSettings, now: Long, flipped: Boolean): Boolean {
         if (!active(s)) return false
         val interval = s.rotationInterval.millis ?: return flipped
-        if (s.rotationLastSwitch <= 0L) return false
-        // 時計が戻ったときも、次の切り替えまで待つ
+        if (needsStart(s, now)) return false
         return now - s.rotationLastSwitch >= interval
     }
+
+    /**
+     * 今を起点として記録し直すべきか。一度も切り替えていない（lastSwitch = 0）ときと、時計が戻ったとき
+     * （戻した幅のぶんまで待つと、手で日付を戻したときなどに長く止まるため）。
+     */
+    fun needsStart(s: AppSettings, now: Long): Boolean = s.rotationLastSwitch <= 0L || now < s.rotationLastSwitch
 
     /**
      * 次に出すおもちゃ。リスト順では、最後にローテーションで出したおもちゃ（cursor）の次。

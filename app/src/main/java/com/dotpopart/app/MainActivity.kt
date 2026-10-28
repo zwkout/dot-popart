@@ -79,11 +79,11 @@ import com.dotpopart.app.ui.theme.DotTheme
 import com.dotpopart.app.ui.theme.LocalDot
 import com.dotpopart.engine.Geo
 import com.dotpopart.engine.Inputs
-import com.dotpopart.engine.ToyCatalog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.ZoneId
 
 class MainActivity : ComponentActivity() {
     private lateinit var repo: SettingsRepository
@@ -175,14 +175,17 @@ class MainActivity : ComponentActivity() {
         // プレビューを 10fps で進める。計算は裏のスレッドで行い、UI スレッドはコマの差し替えだけ。
         // ここでは engine.version を読まない（読むと画面全体が 0.1秒ごとに作り直される）。
         val lifecycle = LocalLifecycleOwner.current.lifecycle
-        // 設定シートで編集中のおもちゃを、サービスに背面へ描いてもらう
+        // 設定シートで編集中のおもちゃを、サービスに背面へ描いてもらう。
+        // 裏に回ると onPause で消すので、戻ってきたら入れ直す（RESUMED に入るたびに、今の値から流し直す）
         LaunchedEffect(sheetOpen, draft) {
             val d = draft
             if (!sheetOpen || d == null) {
                 LiveDraft.current = null
                 return@LaunchedEffect
             }
-            snapshotFlow { LiveDraft.Draft(d.def.id, d.params, d.brightness) }.collect { LiveDraft.current = it }
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                snapshotFlow { LiveDraft.Draft(d.def.id, d.params, d.brightness) }.collect { LiveDraft.current = it }
+            }
         }
         LaunchedEffect(Unit) {
             lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -191,6 +194,7 @@ class MainActivity : ComponentActivity() {
                 while (true) {
                     val now = SystemClock.elapsedRealtime()
                     previewInputs.epochMillis = System.currentTimeMillis()
+                    previewInputs.zone = ZoneId.systemDefault()
                     previewInputs.gravityX = -hub.ax // 画面上のプレビューは画面側から見た向き
                     previewInputs.gravityY = hub.ay
                     previewInputs.batteryLevel = hub.batteryLevel
@@ -254,7 +258,7 @@ class MainActivity : ComponentActivity() {
                                 onEnabled = { scope.launch { repo.setRotationEnabled(it) } },
                                 onInterval = { scope.launch { repo.setRotationInterval(it) } },
                                 onOrder = { scope.launch { repo.setRotationOrder(it) } },
-                                onToys = { scope.launch { repo.setRotationToys(it) } },
+                                onToggleToy = { scope.launch { repo.toggleRotationToy(it) } },
                             )
                             Screen.GLYPH -> GlyphSettingsScreen(
                                 s, batteryExempt, bottom,
@@ -295,10 +299,10 @@ class MainActivity : ComponentActivity() {
                         onRequestNotifications = { openNotificationAccess() },
                         onCancel = { sheetOpen = false },
                         onSave = {
-                            scope.launch {
-                                repo.applyToy(d.def.id, d.params)
-                                repo.setBrightness(d.brightness)
-                            }
+                            // 画面が作り直されても保存が途中で消えないよう、アプリ全体のスコープで書く
+                            val params = d.params
+                            val brightness = d.brightness
+                            (application as DotPopArtApp).scope.launch { repo.applyToy(d.def.id, params, brightness) }
                             sheetOpen = false
                             if (d.def.id == "aquarium" && !notificationAccess) askNotifications = true
                         },

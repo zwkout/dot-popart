@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -87,12 +89,20 @@ fun DotIcon(path: String, size: Dp, tint: Color, stroke: Float = 2f, modifier: M
     Icon(DotIcons.stroke(path, stroke), contentDescription = null, tint = tint, modifier = modifier.size(size))
 }
 
-/** 波紋なしで押せるようにする（デザインに合わせる）。 */
+/**
+ * 波紋なしで押せるようにする（デザインに合わせる）。
+ * [state] を渡すと、読み上げにオン／オフ（スイッチ・チェック）か選択中（ラジオボタン）を伝える。
+ */
 @Composable
-fun Modifier.tap(label: String? = null, role: Role = Role.Button, enabled: Boolean = true, onClick: () -> Unit): Modifier {
+fun Modifier.tap(label: String? = null, role: Role = Role.Button, enabled: Boolean = true, state: Boolean? = null, onClick: () -> Unit): Modifier {
     val source = remember { MutableInteractionSource() }
+    val press = when {
+        state == null -> Modifier.clickable(interactionSource = source, indication = null, enabled = enabled, role = role, onClick = onClick)
+        role == Role.RadioButton -> Modifier.selectable(state, source, null, enabled, role, onClick)
+        else -> Modifier.toggleable(state, source, null, enabled, role) { onClick() }
+    }
     return this
-        .clickable(interactionSource = source, indication = null, enabled = enabled, role = role, onClick = onClick)
+        .then(press)
         .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier)
 }
 
@@ -108,7 +118,7 @@ fun DotSwitch(on: Boolean, label: String, enabled: Boolean = true, onChange: ((B
             .size(52.dp, 32.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(track)
-            .then(if (onChange != null) Modifier.tap(label, Role.Switch, enabled) { onChange(!on) } else Modifier)
+            .then(if (onChange != null) Modifier.tap(label, Role.Switch, enabled, state = on) { onChange(!on) } else Modifier)
             .padding(4.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -132,7 +142,7 @@ fun Segmented(options: List<String>, selected: Int, enabled: Boolean = true, onP
                     .height(40.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(if (sel) c.inv else Color.Transparent)
-                    .tap(label, Role.RadioButton, enabled) { onPick(i) },
+                    .tap(label, Role.RadioButton, enabled, state = sel) { onPick(i) },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -163,7 +173,7 @@ fun BrightnessPicker(level: Int, modifier: Modifier = Modifier, onPick: (Int) ->
                     .height(40.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(if (sel) c.inv else Color.Transparent)
-                    .tap("明るさ ${i + 1} / 4", Role.RadioButton) { onPick(i) },
+                    .tap("明るさ ${i + 1} / 4", Role.RadioButton, state = sel) { onPick(i) },
                 horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

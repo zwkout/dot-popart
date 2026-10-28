@@ -34,7 +34,8 @@ object DeviceInfo {
     fun init(context: Context) {
         val prefs = context.getSharedPreferences("device", Context.MODE_PRIVATE)
         val cached = prefs.getInt("matrixLength", 0)
-        if (cached == 13 || cached == 25) {
+        // バックアップから別の機種に戻されたキャッシュは使わない（判定し直す）
+        if ((cached == 13 || cached == 25) && prefs.getString("model", null) == Build.MODEL) {
             matrixLength = cached
             hasMatrix = true
             return
@@ -57,6 +58,6 @@ object DeviceInfo {
         hasMatrix = matrixLength != 0
         if (!hasMatrix) matrixLength = 13
         Log.i(TAG, "device model=${Build.MODEL} detected=$detected matrix=$matrixLength hasMatrix=$hasMatrix")
-        if (hasMatrix) prefs.edit().putInt("matrixLength", matrixLength).apply()
+        if (hasMatrix) prefs.edit().putInt("matrixLength", matrixLength).putString("model", Build.MODEL).apply()
     }
 }

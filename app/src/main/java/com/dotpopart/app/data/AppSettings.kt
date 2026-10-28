@@ -1,5 +1,7 @@
 package com.dotpopart.app.data
 
+import com.dotpopart.engine.ToyCatalog
+
 /** 切り替えるタイミング。[FLIP] は「伏せるたび」。 */
 enum class RotationInterval(val key: String, val millis: Long?, val label: String) {
     MIN15("15m", 15 * 60_000L, "15分"),
@@ -53,7 +55,7 @@ enum class ThemeMode(val key: String) {
  * @property previewDevice 開発用：プレビューで見る端末の一辺（0 なら実機に合わせる）。隠し操作のあとだけ効く。
  */
 data class AppSettings(
-    val activeToy: String = "pong",
+    val activeToy: String = ToyCatalog.default.id,
     val brightness: Int = 2,
     val theme: ThemeMode = ThemeMode.DARK,
     val rotationEnabled: Boolean = false,

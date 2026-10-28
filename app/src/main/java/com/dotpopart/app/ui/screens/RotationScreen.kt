@@ -71,7 +71,7 @@ fun RotationScreen(
     onEnabled: (Boolean) -> Unit,
     onInterval: (RotationInterval) -> Unit,
     onOrder: (RotationOrder) -> Unit,
-    onToys: (Set<String>) -> Unit,
+    onToggleToy: (String) -> Unit,
 ) {
     val c = LocalDot.current
     val on = s.rotationEnabled
@@ -117,14 +117,14 @@ fun RotationScreen(
         }
         itemsIndexed(ToyCatalog.all, key = { _, def -> "T:${def.id}" }) { i, def ->
             Box(body.padding(top = if (i > 0) 6.dp else 0.dp)) {
-                ToyRow(def, s, geo, engine, on, onToys)
+                ToyRow(def, s, geo, engine, on, onToggleToy)
             }
         }
     }
 }
 
 @Composable
-private fun ToyRow(def: ToyDef, s: AppSettings, geo: Geo, engine: PreviewEngine, on: Boolean, onToys: (Set<String>) -> Unit) {
+private fun ToyRow(def: ToyDef, s: AppSettings, geo: Geo, engine: PreviewEngine, on: Boolean, onToggleToy: (String) -> Unit) {
     val c = LocalDot.current
     val checked = def.id in s.rotationToys
     val shape = RoundedCornerShape(16.dp)
@@ -135,9 +135,7 @@ private fun ToyRow(def: ToyDef, s: AppSettings, geo: Geo, engine: PreviewEngine,
             .clip(shape)
             .background(c.surface)
             .border(1.dp, c.border, shape)
-            .tap(def.en, Role.Checkbox, enabled = on) {
-                onToys(if (checked) s.rotationToys - def.id else s.rotationToys + def.id)
-            }
+            .tap(def.en, Role.Checkbox, enabled = on, state = checked) { onToggleToy(def.id) }
             .padding(start = 10.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),

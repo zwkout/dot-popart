@@ -3,8 +3,10 @@ package com.dotpopart.app
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.dotpopart.app.glyph.AppCue
 import com.dotpopart.app.glyph.TestPattern
+import com.dotpopart.engine.ToyCatalog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,8 +34,12 @@ class DebugReceiver : BroadcastReceiver() {
         val done = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                if (toy != null) repo.applyToy(toy, emptyMap())
+                if (toy != null) {
+                    if (ToyCatalog[toy] != null) repo.applyToy(toy, emptyMap()) else Log.w("DPA", "debug: unknown toy $toy")
+                }
                 if (brightness in 0..3) repo.setBrightness(brightness)
+            } catch (e: Exception) {
+                Log.e("DPA", "debug: write failed", e)
             } finally {
                 done.finish()
             }

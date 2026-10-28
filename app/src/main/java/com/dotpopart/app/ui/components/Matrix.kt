@@ -67,6 +67,7 @@ fun MatrixWindow(
     ) {
         ComposeCanvas(Modifier.size(inner)) {
             val version = engine.version // コマが進んだら描き直す（描く段階でだけ読む）
+            engine.touch(frame)
             val gap = (if (geo.big) gapLarge else gapSmall).dp.toPx()
             val g = (if (geo.big) maxOf(1f, glow * 0.55f) else glow).dp.toPx()
             // 光が窓の端で切れないよう、画像は光の幅だけ広く作り、そのぶん左上にずらして貼る

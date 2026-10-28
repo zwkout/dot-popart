@@ -64,12 +64,20 @@ fun SlideOverlay(
     val scope = rememberCoroutineScope()
     val dismiss by rememberUpdatedState(onDismiss)
     var dragging by remember { mutableStateOf(false) }
+
+    /**
+     * 指で動かしている間の位置。[progress] への反映は次のコマまで遅れるので、同じコマで続けて動かしても
+     * 前の分を取りこぼさないよう、手元で先に覚えておく。
+     */
+    val dragPos = remember { floatArrayOf(0f) }
     val moving by rememberUpdatedState(onMoving)
     LaunchedEffect(Unit) {
         snapshotFlow { progress.isRunning || dragging }.collect { moving(it) }
     }
 
     LaunchedEffect(visible) {
+        // 引いている途中で戻るボタンなどで閉じても、プレビューが止まったままにならないようにする
+        dragging = false
         if (visible) {
             present = true
             launch { scrim.animateTo(1f, tween(DotMotion.SCRIM_MS, easing = LinearEasing)) }
@@ -87,8 +95,10 @@ fun SlideOverlay(
 
     /** 指の移動（閉じる向きを正とした px）で動かす。 */
     fun drag(closingPx: Float) {
+        val from = if (dragging) dragPos[0] else progress.value
         dragging = true
-        val p = (progress.value - closingPx / extent).coerceIn(0f, 1f)
+        val p = (from - closingPx / extent).coerceIn(0f, 1f)
+        dragPos[0] = p
         scope.launch {
             progress.snapTo(p)
             scrim.snapTo(p)
@@ -97,8 +107,9 @@ fun SlideOverlay(
 
     /** 指を離したとき（閉じる向きを正とした速さ px/s）。 */
     fun settle(closingVelocity: Float) {
+        val at = if (dragging) dragPos[0] else progress.value
         dragging = false
-        if (closingVelocity > FLING_PX_PER_SEC || (closingVelocity > -FLING_PX_PER_SEC && progress.value < 0.6f)) {
+        if (closingVelocity > FLING_PX_PER_SEC || (closingVelocity > -FLING_PX_PER_SEC && at < 0.6f)) {
             dismiss()
         } else {
             scope.launch {
@@ -134,6 +145,9 @@ fun SlideOverlay(
                     settle(available.y)
                     return available
                 }
+                // 引いてから開いた位置まで戻して離したときも、引いている状態を終える
+                // （終えないと、プレビューが全部止まったままになる）
+                dragging = false
                 return Velocity.Zero
             }
         }

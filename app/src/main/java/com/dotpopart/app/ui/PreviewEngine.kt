@@ -26,6 +26,12 @@ class PreviewEngine(val inputs: Inputs) {
     var version by mutableLongStateOf(0L)
         private set
 
+    /**
+     * [version] と同じだけ進む、State でない数。[frame]／[cueFrame] は組み立ての中で呼ばれるので、
+     * そこで [version] を読むと、呼んだカードが 0.1秒ごとに組み立て直される。こちらを使う。
+     */
+    @Volatile private var published = 0L
+
     private class Entry(val sig: String, val runner: ToyRunner, size: Int, var lastUsed: Long) {
         /** 裏のスレッドが書く。 */
         val back = FloatArray(size)
@@ -71,11 +77,11 @@ class PreviewEngine(val inputs: Inputs) {
         synchronized(lock) {
             val current = entries[key]
             if (current != null && current.sig == sig) {
-                current.lastUsed = version
+                current.lastUsed = published
                 return current.front
             }
             val runner = ToyRunner(def, geo, p, inputs, options = EngineOptions(demo = true))
-            val e = Entry(sig, runner, geo.size, version)
+            val e = Entry(sig, runner, geo.size, published)
             runner.draw(e.front)
             System.arraycopy(e.front, 0, e.back, 0, e.front.size)
             entries[key] = e
@@ -88,10 +94,10 @@ class PreviewEngine(val inputs: Inputs) {
         synchronized(lock) {
             val current = cues[key]
             if (current != null && current.live == live && current.anim.geo == geo) {
-                current.lastUsed = version
+                current.lastUsed = published
                 return current.front
             }
-            val e = CueEntry(anim(geo), live, version)
+            val e = CueEntry(anim(geo), live, published)
             e.draw()
             System.arraycopy(e.back, 0, e.front, 0, e.front.size)
             cues[key] = e
@@ -99,7 +105,16 @@ class PreviewEngine(val inputs: Inputs) {
         }
     }
 
-    fun bufferOf(key: String): FloatArray? = synchronized(lock) { entries[key]?.front }
+    /**
+     * 描く段階から呼ぶ。このコマ（[frame] が返した配列）を、まだ画面に出ているとして残す。
+     * 画面から外れて描かれなくなったものは、しばらくして [step] が捨てる。
+     */
+    fun touch(front: FloatArray) {
+        synchronized(lock) {
+            val e = entries.values.firstOrNull { it.front === front }
+            if (e != null) e.lastUsed = published else cues.values.firstOrNull { it.front === front }?.lastUsed = published
+        }
+    }
 
     /** 試し操作。次の [step] で、計算のスレッドの上で行う。 */
     fun act(key: String) = synchronized(lock) { entries[key]?.pendingAct = true }
@@ -107,7 +122,7 @@ class PreviewEngine(val inputs: Inputs) {
     /** 裏のスレッドから呼ぶ。全部のプレビューを進めて back に描く。 */
     fun step(dtSec: Double) {
         val list = synchronized(lock) {
-            val stale = version - 30
+            val stale = published - 30
             entries.values.removeAll { it.lastUsed < stale }
             cues.values.removeAll { it.lastUsed < stale }
             entries.values.toList()
@@ -143,6 +158,7 @@ class PreviewEngine(val inputs: Inputs) {
             for (e in entries.values) System.arraycopy(e.back, 0, e.front, 0, e.front.size)
             for (e in cues.values) System.arraycopy(e.back, 0, e.front, 0, e.front.size)
         }
+        published++
         version++
     }
 }
