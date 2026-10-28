@@ -1,0 +1,6 @@
+# gitignore されているが作業に要るもの。新しいワークツリーにコピーされる
+docs/
+app/libs/*.aar
+local.properties
+tools/reference/
+tools/device-check/
