@@ -45,7 +45,7 @@ A collection of 14 tiny toys for the Glyph Matrix on the back of Nothing Phone (
 ```
 toy-engine/   おもちゃのロジック（純粋な Kotlin。Android に依存しない）と JVM のテスト
 app/          Compose の画面、Glyph Toy サービス、LED の明るさの変換、設定の保存（DataStore）
-tools/        世界地図のビットマップを作るスクリプト（Natural Earth から）
+tools/        世界地図のデータを作るスクリプト（Natural Earth から）
 ```
 
 ## ライセンス
@@ -55,7 +55,7 @@ tools/        世界地図のビットマップを作るスクリプト（Natura
 同梱しているもの：
 
 - 書体 Doto、IBM Plex Sans JP、IBM Plex Mono：SIL Open Font License 1.1（本文は `app/src/main/assets/licenses/`）
-- 世界地図：[Natural Earth](https://www.naturalearthdata.com/)（パブリックドメイン）から作ったビットマップ
+- 世界地図：[Natural Earth](https://www.naturalearthdata.com/)（パブリックドメイン）から作った地図データ
 
 含めていないもの：
 

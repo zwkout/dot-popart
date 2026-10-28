@@ -243,4 +243,29 @@ class BehaviorTest {
             assertTrue("n=${geo.n} x=$x turns=${toy.turns}", toy.turns <= 1)
         }
     }
+
+    /**
+     * GLOBE：ゆっくり回して1周（約9.6fps）見ても、LED が2コマ以内に点いて戻る（または消えて戻る）ことがほとんどない。
+     * 以前の点で拾う描き方では、Phone (3) で1周に約330回、(4a) Pro で約90回あった（島がもぞもぞ動いて見えた）。
+     */
+    @Test
+    fun globeSpinsWithoutFlicker() {
+        for ((geo, limit) in listOf(g13 to 0, Geo.PHONE_3 to 5)) {
+            val r = runner("globe", Inputs(), mapOf("spin" to 1f), geo)
+            val lastFlip = IntArray(geo.size) { -100 }
+            var prev = frame(r)
+            var bounces = 0
+            for (t in 1..576) {
+                r.advance(1 / 9.6)
+                val cur = frame(r)
+                for (i in cur.indices) {
+                    if ((cur[i] > 0.5f) == (prev[i] > 0.5f)) continue
+                    if (t - lastFlip[i] <= 2) bounces++
+                    lastFlip[i] = t
+                }
+                prev = cur
+            }
+            assertTrue("n=${geo.n} bounces=$bounces", bounces <= limit)
+        }
+    }
 }
