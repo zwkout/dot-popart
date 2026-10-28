@@ -34,7 +34,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dotpopart.app.BuildConfig
 import com.dotpopart.app.ui.PreviewEngine
 import com.dotpopart.app.ui.components.BrightnessPicker
 import com.dotpopart.app.ui.components.DotIcon
@@ -59,14 +58,14 @@ class SheetDraft(val def: ToyDef, params: Map<String, Float>, brightness: Int) {
 
 /**
  * 設定シートの中身。プレビューは編集中の設定をその場で反映し、設定を変えると最初からやり直す。
- * @param showDevice プレビューで見る端末の切り替えを出すか（デバッグ版、または隠し操作のあと）
+ * @param devTools 開発用の表示（プレビューで見る端末の切り替えと注記）を出すか（隠し操作のあとだけ）
  */
 @Composable
 fun SettingsSheet(
     draft: SheetDraft,
     geo: Geo,
     engine: PreviewEngine,
-    showDevice: Boolean,
+    devTools: Boolean,
     notificationAccess: Boolean,
     maxHeight: Dp,
     bottomInset: Dp,
@@ -121,7 +120,7 @@ fun SettingsSheet(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (showDevice) {
+            if (devTools) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("PREVIEW", style = TextStyle(fontFamily = DotFonts.mono, fontSize = 10.sp, letterSpacing = 0.12.em()), color = c.text4)
                     SmallSegmented(listOf("(4a) Pro", "(3)"), if (geo.n == 25) 1 else 0) { onDevice(if (it == 1) 25 else 13) }
@@ -145,8 +144,8 @@ fun SettingsSheet(
                 }
             }
         }
-        // 注記はプレビューの仕組みの説明なので、デバッグ版だけに出す
-        val note = if (!BuildConfig.DEBUG) null else def.note ?: if (def.usesTilt) "傾きは実機のセンサー" else null
+        // 注記はプレビューの仕組みの説明なので、隠し操作のあとだけに出す
+        val note = if (!devTools) null else def.note ?: if (def.usesTilt) "傾きは実機のセンサー" else null
         if (note != null) {
             Text(
                 note,

@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dotpopart.app.BuildConfig
 import com.dotpopart.app.data.AppSettings
 import com.dotpopart.app.device.DeviceInfo
 import com.dotpopart.app.ui.PreviewEngine
@@ -144,11 +143,5 @@ fun Drawer(
             Text("ライトモード", Modifier.weight(1f), style = TextStyle(fontFamily = DotFonts.sans, fontWeight = FontWeight.Medium, fontSize = 14.sp), color = c.text)
             DotSwitch(c.light, "ライトモード", onChange = onLight)
         }
-        Text(
-            "v${BuildConfig.VERSION_NAME.substringBeforeLast('.')} · ${if (geo.big) "Phone (3)" else "Phone (4a) Pro"} · ${geo.ledCount} LED",
-            Modifier.padding(horizontal = 8.dp),
-            style = TextStyle(fontFamily = DotFonts.mono, fontSize = 10.sp, letterSpacing = 0.1.em()),
-            color = c.text4,
-        )
     }
 }

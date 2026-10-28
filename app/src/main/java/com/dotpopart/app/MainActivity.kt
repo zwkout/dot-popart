@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -140,12 +141,15 @@ class MainActivity : ComponentActivity() {
         var askNotifications by remember { mutableStateOf(false) }
         var sheetMoving by remember { mutableStateOf(false) }
         var drawerMoving by remember { mutableStateOf(false) }
-        // 端末切り替えの隠し操作：タイトルを10回続けてタップ
-        var unlocked by remember { mutableStateOf(BuildConfig.DEBUG) }
+        // 開発用の表示（端末切り替え、プレビューの注記）の隠し操作：タイトルを10回続けてタップ。
+        // もう10回で隠す。デバッグ版でも最初は隠しておく（配布する画面と同じに見えるように）。
+        var unlocked by rememberSaveable { mutableStateOf(false) }
         var taps by remember { mutableIntStateOf(0) }
         var lastTap by remember { mutableLongStateOf(0L) }
 
-        val geo: Geo = if (s.previewDevice == 13 || s.previewDevice == 25) Geo.of(s.previewDevice) else DeviceInfo.geo
+        // 隠しているときは、前に選んだ端末が残っていても実機に合わせる
+        val preview = if (unlocked) s.previewDevice else 0
+        val geo: Geo = if (preview == 13 || preview == 25) Geo.of(preview) else DeviceInfo.geo
         val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
@@ -205,7 +209,10 @@ class MainActivity : ComponentActivity() {
                         val now = SystemClock.elapsedRealtime()
                         taps = if (now - lastTap < 600) taps + 1 else 1
                         lastTap = now
-                        if (taps >= 10) unlocked = true
+                        if (taps >= 10) {
+                            unlocked = !unlocked
+                            taps = 0
+                        }
                     },
                 )
                 val slide = with(LocalDensity.current) { 10.dp.roundToPx() }
@@ -261,7 +268,7 @@ class MainActivity : ComponentActivity() {
                         draft = d,
                         geo = geo,
                         engine = engine,
-                        showDevice = unlocked,
+                        devTools = unlocked,
                         notificationAccess = notificationAccess,
                         maxHeight = fullHeight - top - 16.dp,
                         bottomInset = bottom,

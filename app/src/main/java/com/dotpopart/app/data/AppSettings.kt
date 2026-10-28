@@ -50,7 +50,7 @@ enum class ThemeMode(val key: String) {
  * @property rotationCursor ローテーションで最後に出したおもちゃ（✓ で割り込んでも変わらない）。
  * @property rotationLastSwitch ローテーションで最後に切り替えた時刻（エポックミリ秒）。
  * @property appCue アプリ連動のアプリごとのオン／オフ（`appCue.<id>`）。保存されていないアプリはオン。
- * @property previewDevice デバッグ用：プレビューで見る端末の一辺（0 なら実機に合わせる）。
+ * @property previewDevice 開発用：プレビューで見る端末の一辺（0 なら実機に合わせる）。隠し操作のあとだけ効く。
  */
 data class AppSettings(
     val activeToy: String = "pong",

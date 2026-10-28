@@ -25,7 +25,7 @@ import com.dotpopart.app.ui.theme.LocalDot
 
 /**
  * タイトルバー（高さ 64）。ホームではアプリ名（ドット書体）と右端の LED 数、ほかの画面では画面名。
- * @param onTitleTap アプリ名をタップしたとき（10回連続で端末切り替えを出す）
+ * @param onTitleTap アプリ名をタップしたとき（10回連続で開発用の表示を出す／隠す）
  */
 @Composable
 fun Header(home: Boolean, title: String, leds: Int, onMenu: () -> Unit, onTitleTap: () -> Unit) {
