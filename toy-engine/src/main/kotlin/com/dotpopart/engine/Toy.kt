@@ -59,6 +59,13 @@ abstract class Toy(protected val ctx: ToyContext) {
      */
     open fun consumeHaptic(): Float = 0f
 
+    /**
+     * 入力（時刻を除く）が変わらなければ、見た目が次に変わるまでの秒数。いつ変わるかわからなければ null。
+     * 時刻で変わるおもちゃは、次に見た目が変わる時刻までの秒数を返す。入力が変わるまで変わらなければ無限大。
+     * 伏せて置いている間、サービスはこの時間まで刻みを休む（電池の消費を減らすため）。
+     */
+    open fun secondsUntilChange(): Double? = null
+
     /** 最初からやり直す（テストで使う。「振るとリセット」は作らないことにした）。 */
     fun restart() {
         time = 0.0

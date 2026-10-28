@@ -41,6 +41,9 @@ class ClockToy(ctx: ToyContext) : Toy(ctx) {
 
     override fun step() {}
 
+    /** 見た目は秒の変わり目でだけ変わる。 */
+    override fun secondsUntilChange(): Double = (1000 - Math.floorMod(inputs.epochMillis, 1000L)) / 1000.0
+
     override fun draw(out: FloatArray) {
         val t = inputs.local()
         var h = t.hour

@@ -52,19 +52,21 @@ class InputHub(context: Context) : SensorEventListener {
     private var hasSample = false
     private var running = false
     private var fast = false
+    private var withAccel = true
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = readBattery(intent)
     }
 
-    fun start(fastRate: Boolean) {
+    /** [useAccel] が false なら、加速度センサーは止めて、向きのセンサーだけを読む。 */
+    fun start(fastRate: Boolean, useAccel: Boolean = true) {
         if (!running) {
             running = true
             app.registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))?.let { readBattery(it) }
-            registerSensor(fastRate)
-        } else if (fastRate != fast) {
+            registerSensor(fastRate, useAccel)
+        } else if (fastRate != fast || useAccel != withAccel) {
             sensors?.unregisterListener(this)
-            registerSensor(fastRate)
+            registerSensor(fastRate, useAccel)
         }
     }
 
@@ -72,11 +74,17 @@ class InputHub(context: Context) : SensorEventListener {
      * 値は、呼んだスレッド（サービスならループのスレッド、画面ならメイン）に届ける。
      * サービスの値をメインに届けると、画面を出していてメインが忙しいときに傾きが遅れる。
      */
-    private fun registerSensor(fastRate: Boolean) {
+    private fun registerSensor(fastRate: Boolean, useAccel: Boolean) {
         fast = fastRate
+        withAccel = useAccel
         val handler = Looper.myLooper()?.let { Handler(it) }
-        accel?.let {
-            sensors?.registerListener(this, it, if (fastRate) SensorManager.SENSOR_DELAY_GAME else SensorManager.SENSOR_DELAY_NORMAL, handler)
+        if (useAccel) {
+            accel?.let {
+                sensors?.registerListener(this, it, if (fastRate) SensorManager.SENSOR_DELAY_GAME else SensorManager.SENSOR_DELAY_NORMAL, handler)
+            }
+        } else {
+            // 止めている間の値は古くなる。次に読み始めたら、ローパスをかけずに最初の値から始める
+            hasSample = false
         }
         faceSensor?.let { sensors?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL, handler) }
     }

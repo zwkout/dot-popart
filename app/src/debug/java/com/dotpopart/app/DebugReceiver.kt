@@ -3,9 +3,10 @@ package com.dotpopart.app
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.util.Log
 import com.dotpopart.app.glyph.AppCue
-import com.dotpopart.app.glyph.ForcedPause
+import com.dotpopart.app.glyph.DebugFlags
 import com.dotpopart.app.glyph.TestPattern
 import com.dotpopart.engine.ToyCatalog
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,10 @@ import kotlinx.coroutines.launch
  * cueApp はアプリの id（AppCueTargets。なければ vwfndr）。
  * 伏せたまま、画面を上にして置いたときと同じに止める／戻す（電池の減り方の基準を測る）。
  *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pause on|off
+ * 省電力の工夫を外して、前の動き方に戻す（off）／使う（on）。
+ *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es saver on|off
+ * 区間を決めて、端末の中で自動で切り替える（モードと分。終わったらふだんの動きに戻る）。
+ *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es plan legacy:120,saver:120,pause:150
  */
 class DebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -34,7 +39,9 @@ class DebugReceiver : BroadcastReceiver() {
         }
         intent.getStringExtra("cueApp")?.let { AppCue.forcedApp = it }
         intent.getStringExtra("cue")?.let { AppCue.forced = when (it) { "on" -> true; "off" -> false; else -> null } }
-        intent.getStringExtra("pause")?.let { ForcedPause.on = it == "on" }
+        intent.getStringExtra("pause")?.let { DebugFlags.pause = it == "on" }
+        intent.getStringExtra("saver")?.let { DebugFlags.legacy = it == "off" }
+        intent.getStringExtra("plan")?.let { DebugFlags.startPlan(it, SystemClock.elapsedRealtime()) }
         val done = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {

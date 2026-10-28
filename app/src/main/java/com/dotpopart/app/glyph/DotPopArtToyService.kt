@@ -48,6 +48,9 @@ import kotlin.math.roundToInt
  *   出ている間もおもちゃの中の時間は進めるが、振動は止める。
  * - WakeLock は、点灯している間（伏せているときも手に持っているときも）、バッテリーの最適化の対象外のときだけ持つ
  *   （画面が消えている間のカクつき・固まり対策。Doze 中は、対象外でないと WakeLock が効かない）。画面を上にして置いている間は外す。
+ * - 伏せて置いている間は電池を減らす工夫をする：見た目が次に変わるまで刻みを休み（[com.dotpopart.engine.Toy.secondsUntilChange]、
+ *   CLOCK なら秒の変わり目だけ）、傾きを使わないおもちゃなら加速度センサーを止める。一晩 CLOCK を伏せたら、
+ *   10fps の刻みで CPU を52分使っていた（2026-10-29 の計測）。
  */
 class DotPopArtToyService : Service() {
     private val events = object : Handler(Looper.getMainLooper()) {
@@ -213,9 +216,12 @@ class DotPopArtToyService : Service() {
             schedule(PERIOD_MS)
             return
         }
+        DebugFlags.update(now)
         val draft = LiveDraft.current
         val def = ToyCatalog[draft?.toyId ?: pendingActive ?: s.activeToy] ?: ToyCatalog.default
-        hub.start(fastRate = !isPaused() && def.usesTilt)
+        // 伏せている間（システムの向きのセンサーで判定）は、傾きを使わないおもちゃなら加速度センサーを止める
+        val useAccel = DebugFlags.legacy || def.usesTilt || hub.systemFace != SYSTEM_FACE_DOWN
+        hub.start(fastRate = !isPaused() && def.usesTilt, useAccel = useAccel)
         val flipped = updateFace(now)
         if (isPaused()) {
             // 画面を上にして置いている間は、システムが LED を消している。何もせず、短めに見に来る
@@ -272,12 +278,21 @@ class DotPopArtToyService : Service() {
         } else {
             toyLayer.send(m, frame, draft?.brightness ?: s.brightness, now, if (lastDraft) 1.0 else LedMapper.fadeGain(fade))
         }
+        // 伏せて置いている間は、見た目が次に変わるまで刻みを休む（CLOCK なら秒の変わり目だけ起きる）。
+        // 出し入れの途中・設定シートの編集中・アプリ連動・試験パターンのときは休まない
+        val canRest = !DebugFlags.legacy && hub.systemFace == SYSTEM_FACE_DOWN && draft == null && !fadingOut &&
+            fade >= 1.0 && !cue.visible && pattern == null
+        val rest = if (canRest) r.toy.secondsUntilChange() else null
         if (now - statAt >= STAT_MS) {
-            Log.i(TAG, "toy=${def.id} sent=$statFrames/${(now - statAt) / 1000}s face=${if (faceDown) "down" else "up"} brightness=${s.brightness} wake=${wakeLock?.isHeld == true} cue=${cue.state}")
+            Log.i(TAG, "toy=${def.id} sent=$statFrames/${(now - statAt) / 1000}s face=${if (faceDown) "down" else "up"} brightness=${s.brightness} wake=${wakeLock?.isHeld == true} cue=${cue.state} rest=${rest != null} accel=$useAccel")
             statFrames = 0
             statAt = now
         }
-        schedule(PERIOD_MS, if (r.toy.stepsPerSecond <= MAX_STEP_SYNC_RATE) r.secondsUntilNextStep() else null)
+        if (rest != null) {
+            schedule((minOf(rest, MAX_REST_SEC) * 1000).toLong() + REST_SLACK_MS)
+        } else {
+            schedule(PERIOD_MS, if (r.toy.stepsPerSecond <= MAX_STEP_SYNC_RATE) r.secondsUntilNextStep() else null)
+        }
     }
 
     /** おもちゃの層への送信。同じ内容のコマは送らず、他の表示に上書きされても戻るよう1秒に1回は再送する。 */
@@ -344,8 +359,8 @@ class DotPopArtToyService : Service() {
         loop?.postDelayed(tick, ((target - afterWork) / 1_000_000L).coerceAtLeast(0L))
     }
 
-    /** 画面を上にして置いている間（システムが LED を消す）は止める。デバッグ版の [ForcedPause] でも止める。 */
-    private fun isPaused(): Boolean = ForcedPause.on || (DeviceInfo.aodOnly && flatUp)
+    /** 画面を上にして置いている間（システムが LED を消す）は止める。デバッグ版の [DebugFlags.pause] でも止める。 */
+    private fun isPaused(): Boolean = DebugFlags.pause || (DeviceInfo.aodOnly && flatUp)
 
     /**
      * 伏せたかどうかを更新する。「伏せるたび」のために、伏せた瞬間なら true を返す。
@@ -521,6 +536,16 @@ class DotPopArtToyService : Service() {
         /** ステップの瞬間より少しだけ後に刻む（ちょうどだと丸めでステップが次の刻みにずれるため）。 */
         private const val STEP_SLACK_NANOS = 3_000_000L
         private const val PAUSED_PERIOD_MS = 250L
+
+        /**
+         * 伏せている間に刻みを休む上限と、見た目が変わる瞬間より少し後に起きる余裕。
+         * 上限があるのは、向き・ローテーション・1秒ごとの再送を、休んでいる間も見るため。
+         */
+        private const val MAX_REST_SEC = 1.0
+        private const val REST_SLACK_MS = 5L
+
+        /** システムの向きのセンサーの「伏せている」（[InputHub.systemFace]）。 */
+        private const val SYSTEM_FACE_DOWN = 2
         private const val RESEND_MS = 1000L
         private const val STAT_MS = 30_000L
         private const val FACE_SETTLE_MS = 600L

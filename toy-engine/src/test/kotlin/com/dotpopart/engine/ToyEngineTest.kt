@@ -55,6 +55,36 @@ class ToyEngineTest {
     }
 
     /**
+     * [Toy.secondsUntilChange] が返した時間の間は、時刻だけが進んでも見た目が変わらない
+     * （サービスは、伏せている間その時間まで刻みを休む）。残量は警告の上と下の両方で見る。
+     */
+    @Test
+    fun framesHoldUntilPromisedChange() {
+        for (def in ToyCatalog.all) for (geo in geos) for (values in variants(def)) for (level in listOf(15, 80)) {
+            val label = "${def.id} n=${geo.n} $values level=$level"
+            val inputs = Inputs(epochMillis = start + 123, zone = zone, batteryLevel = level)
+            val runner = ToyRunner(def, geo, def.params(values), inputs, Random(42))
+            val out = FloatArray(geo.size)
+            var held: List<Float>? = null
+            var until = 0L
+            var promised = 0
+            // 2分ぶん。刻みを 70ms にして、秒の変わり目の前後をいろいろな位置で踏む
+            for (frame in 0 until 1700) {
+                inputs.epochMillis += 70
+                runner.advance(0.07)
+                runner.draw(out)
+                val now = out.toList()
+                if (held != null && inputs.epochMillis < until) assertEquals("$label frame=$frame", held, now)
+                val h = runner.toy.secondsUntilChange() ?: continue
+                promised++
+                held = now
+                until = if (h.isInfinite()) Long.MAX_VALUE else inputs.epochMillis + (h * 1000).toLong()
+            }
+            if (def.id == "clock" || (def.id == "battery" && level == 80)) assertTrue("$label never promised", promised > 0)
+        }
+    }
+
+    /**
      * 試し操作は、実機でも効くもの（[ToyDef.actsOnDevice]）は実機の動き（demo でない）で表示を変え、
      * 効かないものは何も変えない。効かないものは、サービスが Glyph ボタンの長押しを「次へ」に回す。
      */

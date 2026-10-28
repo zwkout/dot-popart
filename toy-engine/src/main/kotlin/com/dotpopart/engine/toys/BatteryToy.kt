@@ -18,6 +18,10 @@ class BatteryToy(ctx: ToyContext) : Toy(ctx) {
 
     override fun step() {}
 
+    /** 点滅していなければ、残量が変わるまで同じ。 */
+    override fun secondsUntilChange(): Double? =
+        if (inputs.batteryLevel.coerceIn(0, 100) < params["warn"]) null else Double.POSITIVE_INFINITY
+
     override fun draw(out: FloatArray) {
         val lvl = inputs.batteryLevel.coerceIn(0, 100)
         val blinkOff = lvl < params["warn"] && odd(time, 2.0).not()

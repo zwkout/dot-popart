@@ -39,9 +39,15 @@ adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app -
 adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es cue on --es cueApp maps
 # 伏せたまま、画面を上にして置いたときと同じに止める（電池の減り方の基準を測るとき）。on／off
 adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pause on
+# 省電力の工夫（伏せている間に刻みを休む・加速度センサーを止める）を外して前の動き方にする。on／off
+adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es saver off
+# 区間を決めて端末の中で切り替える（モード:分。legacy・saver・pause。終わるとふだんに戻る）
+adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es plan legacy:120,saver:120,pause:150
 ```
 
-確認が終わったら、試験パターンは `off`、アプリ連動は `auto`、止めるのは `off` に戻す。
+確認が終わったら、試験パターンは `off`、アプリ連動は `auto`、止めるのは `off`、省電力は `on` に戻す。
+
+夜通しの計測では、画面が消えると Wi-Fi が止まり adb が切れることがある（端末の「スリープスタンバイの最適化」）。夜中の切り替えは `plan` で端末に任せ、朝に `dumpsys batterystats --history` の `charge=`（mAh）と時刻で区間を切り分ける。
 
 ## 4. LED に届いたコマを見る
 
