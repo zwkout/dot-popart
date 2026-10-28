@@ -1,7 +1,6 @@
 package com.dotpopart.engine
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -52,6 +51,28 @@ class ToyEngineTest {
                 if (frame == 1200) runner.toy.restart()
                 if (frame % 3 == 0) checkFrame(label, geo, runner, out)
             }
+        }
+    }
+
+    /**
+     * 試し操作は、実機でも効くもの（[ToyDef.actsOnDevice]）は実機の動き（demo でない）で表示を変え、
+     * 効かないものは何も変えない。効かないものは、サービスが Glyph ボタンの長押しを「次へ」に回す。
+     */
+    @Test
+    fun actOnDeviceMatchesCatalog() {
+        for (def in ToyCatalog.all.filter { it.action != null }) for (geo in geos) {
+            fun run(act: Boolean): List<List<Float>> {
+                val inputs = Inputs(epochMillis = start, zone = zone, batteryLevel = 50, charging = false)
+                val runner = ToyRunner(def, geo, def.params(), inputs, Random(7), EngineOptions(demo = false))
+                val out = FloatArray(geo.size)
+                return (0 until 40).map { frame ->
+                    if (act && frame == 5) runner.toy.act()
+                    runner.advance(0.1)
+                    runner.draw(out)
+                    out.toList()
+                }
+            }
+            assertEquals("${def.id} n=${geo.n}", def.actsOnDevice, run(act = false) != run(act = true))
         }
     }
 

@@ -40,7 +40,6 @@ abstract class CueAnim(final override val geo: Geo) : AppCueAnim {
     protected val n = geo.n
     protected val c = geo.c
     protected val s = (n - 1) / 12.0
-    protected val bigR = geo.r
     private val dist = DoubleArray(geo.size) { i -> sqrt(sq(i % n - c) + sq(i / n - c)) }
 
     override var heading = 0.0
@@ -126,11 +125,6 @@ abstract class CueAnim(final override val geo: Geo) : AppCueAnim {
         val x = i % n
         val y = i / n
         return mod(StrictMath.atan2(x - c, -(y - c)) * 180 / Math.PI, 360.0)
-    }
-
-    protected fun ring(f: FloatArray, r: Double, v: Double) {
-        if (!(v > 0) || r < 0.5) return
-        for (i in f.indices) if (geo.inside(i) && abs(dist[i] - r) < 0.55) set(f, i, v)
     }
 
     protected fun ringAt(f: FloatArray, cx: Double, cy: Double, r: Double, v: Double) {
@@ -547,7 +541,7 @@ private class ObsidianLink(geo: Geo) : CueAnim(geo) {
 /** Speedtest：メーター（`gauge`）。 */
 private class SpeedGauge(geo: Geo) : CueAnim(geo) {
     override val animatedUse = true
-    private var layer = FloatArray(geo.size)
+    private val layer = FloatArray(geo.size)
 
     private fun draw(f: FloatArray, v: Double, base: Double, needleK: Double, litV: Double = REST) {
         val rA = 5 * s

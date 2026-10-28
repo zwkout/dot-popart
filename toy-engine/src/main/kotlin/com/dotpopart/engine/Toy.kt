@@ -59,7 +59,7 @@ abstract class Toy(protected val ctx: ToyContext) {
      */
     open fun consumeHaptic(): Float = 0f
 
-    /** 最初からやり直す（「振るとリセット」）。 */
+    /** 最初からやり直す（テストで使う。「振るとリセット」は作らないことにした）。 */
     fun restart() {
         time = 0.0
         init()

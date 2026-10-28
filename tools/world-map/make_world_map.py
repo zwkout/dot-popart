@@ -72,6 +72,9 @@ def main():
             row.append("#" if hit * 2 >= ss * ss else ".")
         rows.append("".join(row))
 
+    # Windows でリダイレクトしても、ほかのソースと同じ UTF-8・LF で書く（既定だと CP932 になる）
+    sys.stdout.reconfigure(encoding="utf-8", newline="
+")
     print("package com.dotpopart.engine")
     print()
     print("// tools/world-map/make_world_map.py で生成（Natural Earth 1:110m、パブリックドメイン）。手で編集しない。")

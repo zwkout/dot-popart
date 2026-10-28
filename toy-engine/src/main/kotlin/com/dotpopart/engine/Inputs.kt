@@ -6,7 +6,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 /**
- * おもちゃが読む外部の入力。実機ではサービスが、プレビューでは [PreviewSimulator] が書き込む。
+ * おもちゃが読む外部の入力。実機ではサービスが、プレビューでは画面（MainActivity）が、刻みごとに書き込む。
  * テストでは自由に差し替えられる。
  */
 class Inputs(
@@ -28,14 +28,4 @@ class Inputs(
     fun zoned(): ZonedDateTime = Instant.ofEpochMilli(epochMillis).atZone(zone)
 
     fun local(): LocalDateTime = zoned().toLocalDateTime()
-
-    fun copyFrom(o: Inputs) {
-        epochMillis = o.epochMillis
-        zone = o.zone
-        gravityX = o.gravityX
-        gravityY = o.gravityY
-        batteryLevel = o.batteryLevel
-        charging = o.charging
-        notifications = o.notifications
-    }
 }

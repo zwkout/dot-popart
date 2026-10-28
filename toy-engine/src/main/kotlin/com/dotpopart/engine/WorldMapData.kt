@@ -1,6 +1,6 @@
 package com.dotpopart.engine
 
-// tools/world-map/make_world_map.py ‚Å¶¬iNatural Earth 1:110mAƒpƒuƒŠƒbƒNƒhƒƒCƒ“jBè‚Å•ÒW‚µ‚È‚¢B
+// tools/world-map/make_world_map.py ã§ç”Ÿæˆï¼ˆNatural Earth 1:110mã€ãƒ‘ãƒ–ãƒªãƒƒã‚¯ãƒ‰ãƒ¡ã‚¤ãƒ³ï¼‰ã€‚æ‰‹ã§ç·¨é›†ã—ãªã„ã€‚
 internal val WORLD_MAP_WIDTH = 128
 internal val WORLD_MAP_HEIGHT = 64
 internal val WORLD_MAP_ROWS = arrayOf(

@@ -25,6 +25,8 @@ import com.dotpopart.engine.toys.SproutToy
  * @property group 一覧で少し間を空けるためのまとまり（見出しは出さない）
  * @property note プレビューの注記（例：「充電は早回し」）
  * @property action 試し操作ボタンのラベル。ないおもちゃは null
+ * @property actsOnDevice 試し操作が実機（Glyph ボタンの長押し）でも効くか。プレビューでしか動かないもの
+ *   （SPROUT の抜き挿し。実機は本物の充電に従う）は false にし、長押しは「次へ」になる
  * @property usesTilt 加速度センサーを使うか（使うおもちゃが点灯している間だけセンサーを速く動かす）
  */
 class ToyDef(
@@ -37,6 +39,7 @@ class ToyDef(
     val fixed: Map<String, Float> = emptyMap(),
     val note: String? = null,
     val action: String? = null,
+    val actsOnDevice: Boolean = true,
     val usesTilt: Boolean = false,
     val create: (ToyContext) -> Toy,
 ) {
@@ -137,6 +140,7 @@ object ToyCatalog {
             fixed = mapOf("bloom" to 100f),
             note = "充電は早回し",
             action = "抜き挿し",
+            actsOnDevice = false,
         ) { SproutToy(it) },
         ToyDef(
             "aquarium", "AQUARIUM", "水槽", "通知が来るとエサが落ちてくる", 4,

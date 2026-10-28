@@ -50,10 +50,10 @@ class Params(
 
     fun int(key: String): Int = Math.round(get(key))
 
-    /** 保存する値（設定項目だけ）。 */
-    fun asMap(): Map<String, Float> = all.filterKeys { k -> controls.any { it.key == k } }
+    /** 保存する値（設定項目だけ）。作ったあと変わらないので、1回だけ作る。 */
+    private val saved: Map<String, Float> by lazy { all.filterKeys { k -> controls.any { it.key == k } } }
 
-    fun with(key: String, value: Float): Params = Params(controls, fixedValues, asMap() + (key to value))
+    fun asMap(): Map<String, Float> = saved
 
     private fun clamp(c: Control, v: Float): Float = when (c) {
         is Control.Slider -> if (v.isNaN()) c.default else v.coerceIn(c.min, c.max)
