@@ -13,7 +13,13 @@ import kotlin.random.Random
 
 class RotationTest {
     private val hour = 60 * 60_000L
-    private val base = AppSettings(activeToy = "pong", rotationCursor = "pong", rotationLastSwitch = 1_000_000L)
+    private val base = AppSettings(
+        activeToy = "pong",
+        rotationEnabled = true,
+        rotationToys = setOf("pong", "life", "meteor", "globe"),
+        rotationCursor = "pong",
+        rotationLastSwitch = 1_000_000L,
+    )
 
     @Test
     fun listOrderFollowsCatalog() {
