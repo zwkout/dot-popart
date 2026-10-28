@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -31,7 +32,6 @@ import com.dotpopart.app.device.DeviceInfo
 import com.dotpopart.app.ui.PreviewEngine
 import com.dotpopart.app.ui.components.DotIcon
 import com.dotpopart.app.ui.components.DotIcons
-import com.dotpopart.app.ui.components.DotSwitch
 import com.dotpopart.app.ui.components.MatrixWindow
 import com.dotpopart.app.ui.components.tap
 import com.dotpopart.app.ui.theme.DotFonts
@@ -134,14 +134,25 @@ fun Drawer(
 
         Spacer(Modifier.weight(1f))
 
+        // テーマは月（ダーク）と太陽（ライト）のアイコンだけで選ぶ
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.surface).border(1.dp, c.border, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxWidth().background(c.track, RoundedCornerShape(14.dp)).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            DotIcon(if (c.light) DotIcons.SUN else DotIcons.MOON, 20.dp, c.text, stroke = 1.8f)
-            Text("ライトモード", Modifier.weight(1f), style = TextStyle(fontFamily = DotFonts.sans, fontWeight = FontWeight.Medium, fontSize = 14.sp), color = c.text)
-            DotSwitch(c.light, "ライトモード", onChange = onLight)
+            for ((light, icon, label) in listOf(Triple(false, DotIcons.MOON, "ダークモード"), Triple(true, DotIcons.SUN, "ライトモード"))) {
+                val sel = c.light == light
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (sel) c.inv else Color.Transparent)
+                        .tap(label, Role.RadioButton) { onLight(light) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    DotIcon(icon, 20.dp, if (sel) c.invText else c.text3, stroke = 1.8f)
+                }
+            }
         }
     }
 }
