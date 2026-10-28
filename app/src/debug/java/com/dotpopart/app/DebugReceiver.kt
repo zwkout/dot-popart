@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.dotpopart.app.glyph.AppCue
+import com.dotpopart.app.glyph.ForcedPause
 import com.dotpopart.app.glyph.TestPattern
 import com.dotpopart.engine.ToyCatalog
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +21,8 @@ import kotlinx.coroutines.launch
  * アプリ連動のアニメーション（vwfndr）を、前面のアプリに関係なく出す（START）／消す（END）／元に戻す。
  *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es cue on|off|auto [--es cueApp maps]
  * cueApp はアプリの id（AppCueTargets。なければ vwfndr）。
+ * 伏せたまま、画面を上にして置いたときと同じに止める／戻す（電池の減り方の基準を測る）。
+ *   adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pause on|off
  */
 class DebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -31,6 +34,7 @@ class DebugReceiver : BroadcastReceiver() {
         }
         intent.getStringExtra("cueApp")?.let { AppCue.forcedApp = it }
         intent.getStringExtra("cue")?.let { AppCue.forced = when (it) { "on" -> true; "off" -> false; else -> null } }
+        intent.getStringExtra("pause")?.let { ForcedPause.on = it == "on" }
         val done = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {

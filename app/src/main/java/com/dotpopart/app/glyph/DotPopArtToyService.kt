@@ -344,8 +344,8 @@ class DotPopArtToyService : Service() {
         loop?.postDelayed(tick, ((target - afterWork) / 1_000_000L).coerceAtLeast(0L))
     }
 
-    /** 画面を上にして置いている間（システムが LED を消す）は止める。 */
-    private fun isPaused(): Boolean = DeviceInfo.aodOnly && flatUp
+    /** 画面を上にして置いている間（システムが LED を消す）は止める。デバッグ版の [ForcedPause] でも止める。 */
+    private fun isPaused(): Boolean = ForcedPause.on || (DeviceInfo.aodOnly && flatUp)
 
     /**
      * 伏せたかどうかを更新する。「伏せるたび」のために、伏せた瞬間なら true を返す。

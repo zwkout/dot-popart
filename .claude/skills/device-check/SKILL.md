@@ -37,9 +37,11 @@ adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app -
 adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pattern 16,32,48,64,96,128
 # アプリ連動のアニメーション（cueApp は AppCueTargets の id。省くと vwfndr）。on／off／auto（元に戻す）
 adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es cue on --es cueApp maps
+# 伏せたまま、画面を上にして置いたときと同じに止める（電池の減り方の基準を測るとき）。on／off
+adb shell am broadcast -a com.dotpopart.app.debug.SET_TOY -p com.dotpopart.app --es pause on
 ```
 
-確認が終わったら、試験パターンは `off`、アプリ連動は `auto` に戻す。
+確認が終わったら、試験パターンは `off`、アプリ連動は `auto`、止めるのは `off` に戻す。
 
 ## 4. LED に届いたコマを見る
 
