@@ -29,7 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -150,7 +154,7 @@ private fun AppCueCard(targets: List<AppCueTarget>, s: AppSettings, geo: Geo, en
                 // 収まらない名前（Flightradar24 など）は 20px まで縮める。2 行のカードは 20px から
                 val max = if (targets.size > 1) 20.sp else 26.sp
                 BasicText(
-                    each.label,
+                    halfSpaces(each.label),
                     style = TextStyle(fontFamily = DotFonts.doto, fontWeight = FontWeight.Black, fontSize = max, lineHeight = max, letterSpacing = 0.03.em(), color = c.text),
                     maxLines = 1,
                     softWrap = false,
@@ -161,5 +165,12 @@ private fun AppCueCard(targets: List<AppCueTarget>, s: AppSettings, geo: Geo, en
         Box(Modifier.alpha(if (usageAccess) 1f else 0.35f)) {
             DotSwitch(on, "$label のアプリ連動", enabled = usageAccess, onChange = null)
         }
+    }
+}
+
+/** Doto は等幅で、空白も 1 文字ぶん空く（VWFNDR + MBL などで間延びする）。名前の中の空白は半分の幅にする。 */
+private fun halfSpaces(name: String): AnnotatedString = buildAnnotatedString {
+    for (ch in name) {
+        if (ch == ' ') withStyle(SpanStyle(fontSize = 0.5.em())) { append(ch) } else append(ch)
     }
 }
