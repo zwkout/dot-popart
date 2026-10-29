@@ -13,10 +13,10 @@ class AppCueTarget(val id: String, val packageName: String, val label: String, v
     fun anim(geo: Geo): AppCueAnim = AppCueAnims.create(animId, geo)
 }
 
-/** 並びはアプリ連動の画面の順（docs/app-cue.md の 4.1）。 */
+/** 並びはアプリ連動の画面の順で、名前のアルファベット順（大文字・小文字は区別しない）。足したアプリも自動で並ぶ。 */
 object AppCueTargets {
     val all = listOf(
-        AppCueTarget("vwfndr", "com.vwfndr.mbl", "vwfndr", "b2_lock"),
+        AppCueTarget("vwfndr", "com.vwfndr.mbl", "VWFNDR + MBL", "b2_lock"),
         AppCueTarget("shazam", "com.shazam.android", "Shazam", "shz_b"),
         AppCueTarget("termux", "com.termux", "Termux", "prompt"),
         AppCueTarget("flightradar24", "com.flightradar24free", "Flightradar24", "radar"),
@@ -30,7 +30,7 @@ object AppCueTargets {
         AppCueTarget("recorder", "com.nothing.soundrecorder", "Recorder", "tape_a"),
         AppCueTarget("essential", "com.nothing.ntessentialspace", "Essential Space", "ess_d"),
         AppCueTarget("pellica", "com.imad.rollify", "Pellica", "film_b"),
-    )
+    ).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
 
     fun ofPackage(packageName: String?): AppCueTarget? = all.firstOrNull { it.packageName == packageName }
 

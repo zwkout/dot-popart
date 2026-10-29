@@ -185,7 +185,7 @@ class AppCue(private val context: Context) {
 
     /** 今出したいアプリ（なければ null）。 */
     private fun desired(s: AppSettings, now: Long): AppCueTarget? {
-        forced?.let { return if (it) AppCueTargets.byId(forcedApp) ?: AppCueTargets.all.first() else null }
+        forced?.let { return if (it) AppCueTargets.byId(forcedApp) ?: AppCueTargets.byId("vwfndr") else null }
         val anyOn = AppCueTargets.all.any { s.appCueOn(it.id) }
         poll(anyOn, now)
         val pkg = foreground?.substringBefore('/')
