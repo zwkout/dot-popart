@@ -81,6 +81,9 @@ class AppCue(private val context: Context) {
     /** 向きを変えるときに、アニメーションをどこまで出しているか（1 で出しきり、0 で消えている）。 */
     private var turnLevel = 1.0
 
+    /** 消えきったあと、出し直すまで暗いままにしておく残りの秒。 */
+    private var turnDark = 0.0
+
     /** アニメーションを出しているか（IDLE 以外）。出している間はおもちゃの振動を止める。 */
     val visible: Boolean get() = phase != Phase.IDLE
 
@@ -143,7 +146,7 @@ class AppCue(private val context: Context) {
 
     /**
      * 向きが変わったら、アニメーションを [TURN_FADE_OUT_SEC] 秒でふわっと消し、消えきったところで新しい向きに替えて、
-     * [TURN_FADE_IN_SEC] 秒でふわっと出し直す。回っている途中の絵は出さない。
+     * [TURN_DARK_SEC] 秒暗いままにしてから、[TURN_FADE_IN_SEC] 秒でふわっと出し直す。回っている途中の絵は出さない。
      * 十字は 180° 回すと同じ形だが、逆さまにしたときも向きが変わったと分かるよう、同じく一度消す。
      * 消えている途中で元の向きに戻したときは、替えずにそのまま出し直す。
      * アニメーションのコマに掛ける倍率を返す。
@@ -154,7 +157,10 @@ class AppCue(private val context: Context) {
             if (turnLevel <= 0) {
                 turnLevel = 0.0
                 turnNow = turnTarget
+                turnDark = TURN_DARK_SEC
             }
+        } else if (turnDark > 0) {
+            turnDark -= dt
         } else {
             turnLevel = minOf(1.0, turnLevel + dt / TURN_FADE_IN_SEC)
         }
@@ -240,6 +246,7 @@ class AppCue(private val context: Context) {
         // 開いたときにもう横持ちなら、はじめから横向きで出す
         turnNow = turnTarget
         turnLevel = 1.0
+        turnDark = 0.0
         if (t != target || anim?.geo != geo) {
             target = t
             anim = t.anim(geo)
@@ -343,8 +350,9 @@ class AppCue(private val context: Context) {
         /** 向きの境目（45°）を越えてから、さらに何度倒れたら切り替えるか。 */
         private const val TURN_HYSTERESIS_DEG = 10.0
 
-        /** 向きを変えるときに、アニメーションを消す秒と、出し直す秒。 */
+        /** 向きを変えるときに、アニメーションを消す秒、暗いままにする秒、出し直す秒。 */
         private const val TURN_FADE_OUT_SEC = 0.15
+        private const val TURN_DARK_SEC = 0.4
         private const val TURN_FADE_IN_SEC = 0.25
 
         private const val POLL_MS = 500L
