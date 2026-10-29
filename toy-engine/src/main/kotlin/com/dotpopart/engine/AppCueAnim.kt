@@ -31,8 +31,8 @@ interface AppCueAnim {
     val turnsWithDevice: Boolean get() = false
 
     /**
-     * 絵を回す角度（度。背面から見て時計回り）。縦持ちは 0、横持ちは ±90、逆さまは 180。途中の角度は回っている途中。
-     * [turnsWithDevice] のものだけが使う。
+     * 絵を回す角度（度。背面から見て時計回り）。縦持ちは 0、横持ちは ±90、逆さまは 180。
+     * 向きを変えるときは、一瞬消してからこの角度を切り替える（途中の角度は渡さない）。[turnsWithDevice] のものだけが使う。
      */
     var turn: Double
 

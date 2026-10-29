@@ -30,7 +30,8 @@ import kotlin.math.sin
  *   アプリのスイッチをオフにしたときも、閉じたときと同じく END を再生する。
  * - END には USE を何秒続けたか（u0）を渡す（USE の間も動くものは、止まった位置から END を始める）。
  * - マップのように方位を使うアニメーションの間だけ、方位センサー（[CueCompass]）を動かす。
- * - vwfndr のように端末の向きで回すアニメーションは、重力で縦持ち・横持ち・逆さまを決め、90° を 0.3 秒の速さで回す。
+ * - vwfndr のように端末の向きで回すアニメーションは、重力で縦持ち・横持ち・逆さまを決め、向きが変わったら
+ *   アニメーションをふわっと消して、新しい向きでふわっと出し直す（vwfndr のアプリの画面の十字と同じ）。
  * - 重ね方：おもちゃのコマに倍率を掛けたあと、アニメーションの値と大きいほうを取る。
  * ループのスレッドだけから呼ぶ。
  */
@@ -73,9 +74,12 @@ class AppCue(private val context: Context) {
     private var smoothX = 0.0
     private var smoothY = -1.0
 
-    /** 絵を回す角度の目標（縦持ち 0、横持ち ±90、逆さま 180）と、今の角度。 */
+    /** 絵を回す角度の目標（縦持ち 0、横持ち ±90、逆さま 180）と、今描いている角度。 */
     private var turnTarget = 0.0
     private var turnNow = 0.0
+
+    /** 向きを変えるときに、アニメーションをどこまで出しているか（1 で出しきり、0 で消えている）。 */
+    private var turnLevel = 1.0
 
     /** アニメーションを出しているか（IDLE 以外）。出している間はおもちゃの振動を止める。 */
     val visible: Boolean get() = phase != Phase.IDLE
@@ -94,10 +98,8 @@ class AppCue(private val context: Context) {
         opened = null
         advance(want ?: blip, want, geo, dt)
         val a = anim ?: return
-        if (a.turnsWithDevice) {
-            stepTurn(dt)
-            a.turn = turnNow
-        }
+        val turnMul = if (a.turnsWithDevice) stepTurn(dt) else 1f
+        if (a.turnsWithDevice) a.turn = turnNow
         if (phase != Phase.IDLE && a.usesHeading) {
             compass.start()
             a.heading = headingFor(geo)
@@ -122,6 +124,7 @@ class AppCue(private val context: Context) {
                 mul = a.toyMulEnd(p)
             }
         }
+        if (turnMul < 1f) for (i in animFrame.indices) animFrame[i] *= turnMul
         for (i in frame.indices) frame[i] = maxOf(frame[i] * mul, animFrame[i])
     }
 
@@ -139,13 +142,24 @@ class AppCue(private val context: Context) {
     }
 
     /**
-     * 今の角度を目標へ一定の速さで、近い回り方で回す。十字は 180° 回すと同じ形だが、逆さまにしたときも
-     * 回って見えるよう、半回転させる。
+     * 向きが変わったら、アニメーションを [TURN_FADE_OUT_SEC] 秒でふわっと消し、消えきったところで新しい向きに替えて、
+     * [TURN_FADE_IN_SEC] 秒でふわっと出し直す。回っている途中の絵は出さない。
+     * 十字は 180° 回すと同じ形だが、逆さまにしたときも向きが変わったと分かるよう、同じく一度消す。
+     * 消えている途中で元の向きに戻したときは、替えずにそのまま出し直す。
+     * アニメーションのコマに掛ける倍率を返す。
      */
-    private fun stepTurn(dt: Double) {
-        val d = wrap(turnTarget - turnNow)
-        val step = TURN_DEG_PER_SEC * dt
-        turnNow = if (abs(d) <= step) turnTarget else wrap(turnNow + (if (d > 0) step else -step))
+    private fun stepTurn(dt: Double): Float {
+        if (turnNow != turnTarget) {
+            turnLevel -= dt / TURN_FADE_OUT_SEC
+            if (turnLevel <= 0) {
+                turnLevel = 0.0
+                turnNow = turnTarget
+            }
+        } else {
+            turnLevel = minOf(1.0, turnLevel + dt / TURN_FADE_IN_SEC)
+        }
+        // 両端をなだらかにする（smoothstep）
+        return (turnLevel * turnLevel * (3 - 2 * turnLevel)).toFloat()
     }
 
     /** 角度を -180〜180 に収める。 */
@@ -225,6 +239,7 @@ class AppCue(private val context: Context) {
         next = null
         // 開いたときにもう横持ちなら、はじめから横向きで出す
         turnNow = turnTarget
+        turnLevel = 1.0
         if (t != target || anim?.geo != geo) {
             target = t
             anim = t.anim(geo)
@@ -327,7 +342,10 @@ class AppCue(private val context: Context) {
 
         /** 向きの境目（45°）を越えてから、さらに何度倒れたら切り替えるか。 */
         private const val TURN_HYSTERESIS_DEG = 10.0
-        private const val TURN_DEG_PER_SEC = 300.0
+
+        /** 向きを変えるときに、アニメーションを消す秒と、出し直す秒。 */
+        private const val TURN_FADE_OUT_SEC = 0.15
+        private const val TURN_FADE_IN_SEC = 0.25
 
         private const val POLL_MS = 500L
         private const val PERM_CHECK_MS = 5_000L
